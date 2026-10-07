@@ -30,3 +30,7 @@ toolbox: minio-image ## Build and start the toolbox container
 .PHONY: images
 images: minio-image ## Build the node and MinIO images
 	docker build -t disavery/node:local images/node
+
+.PHONY: secrets
+secrets: toolbox ## Generate local secrets once (SOPS + age, escrow copy)
+	$(TB) bash scripts/init-secrets.sh

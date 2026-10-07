@@ -2306,7 +2306,7 @@ git commit -m "feat: add docsvc binary"
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: image `disavery/node:local` (Debian 12, systemd PID 1, sshd with root key login, python3); running container `disavery-toolbox` (image `disavery/toolbox:local`) at `172.31.0.2` on network `disavery-wan`, repo mounted at `/work`, volumes `/secrets`, `/escrow`, Docker socket mounted, `SOPS_AGE_KEY_FILE=/secrets/age/keys.txt`, `ANSIBLE_CONFIG=/work/infra/ansible/ansible.cfg`; tools: go, terraform, ansible-playbook, ansible-lint, sops, age, step, mc, docker CLI, psql, dig, jq, ssh. Make targets `toolbox`, `images`.
+- Produces: image `disavery/node:local` (Debian 12, systemd PID 1, sshd with root key login, python3); running container `disavery-toolbox` (image `disavery/toolbox:local`) at `172.31.0.2` on network `disavery-wan`, repo mounted at `/work`, volumes `/secrets`, `/escrow`, Docker socket mounted, `SOPS_AGE_KEY_FILE=/secrets/age/keys.txt`, `ANSIBLE_CONFIG=/work/infra/ansible/ansible.cfg`; tools: go, terraform, ansible-playbook, ansible-lint, sops, age, step, mc, minio, docker CLI, psql, dig, jq, ssh. Make targets `toolbox`, `images`.
 
 - [ ] **Step 1: Write the node image**
 
@@ -2362,7 +2362,6 @@ ARG TERRAFORM_VERSION=1.9.8
 ARG SOPS_VERSION=3.9.1
 ARG AGE_VERSION=1.2.0
 ARG STEP_VERSION=0.27.4
-ARG MC_RELEASE=RELEASE.2024-10-08T09-37-26Z
 ARG DOCKER_VERSION=27.3.1
 
 RUN apt-get update \
@@ -2378,10 +2377,12 @@ RUN curl -fsSLo /tmp/tf.zip "https://releases.hashicorp.com/terraform/${TERRAFOR
     | tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen \
  && curl -fsSL "https://github.com/smallstep/cli/releases/download/v${STEP_VERSION}/step_linux_${STEP_VERSION}_amd64.tar.gz" \
     | tar -xz -C /usr/local/bin --strip-components=2 "step_${STEP_VERSION}/bin/step" \
- && curl -fsSLo /usr/local/bin/mc "https://dl.min.io/client/mc/release/linux-amd64/archive/mc.${MC_RELEASE}" \
- && chmod +x /usr/local/bin/mc \
  && curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz" \
     | tar -xz -C /usr/local/bin --strip-components=1 docker/docker
+
+# minio and mc come from the locally built image (make minio-image); Ansible
+# copies minio from here to the object-storage nodes.
+COPY --from=disavery/minio:local /usr/local/bin/minio /usr/local/bin/mc /usr/local/bin/
 
 COPY requirements.txt requirements.yml /tmp/
 RUN python3 -m venv /opt/ansible \
@@ -2448,11 +2449,11 @@ Append to `Makefile`:
 TB := docker compose exec -T toolbox
 
 .PHONY: toolbox
-toolbox: ## Build and start the toolbox container
+toolbox: minio-image ## Build and start the toolbox container
 	docker compose up -d --build toolbox
 
 .PHONY: images
-images: ## Build the node image
+images: minio-image ## Build the node and MinIO images
 	docker build -t disavery/node:local images/node
 ```
 

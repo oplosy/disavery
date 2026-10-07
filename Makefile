@@ -20,3 +20,13 @@ test-short: ## Run unit tests only
 .PHONY: lint
 lint: ## Run golangci-lint
 	golangci-lint run
+
+TB := docker compose exec -T toolbox
+
+.PHONY: toolbox
+toolbox: minio-image ## Build and start the toolbox container
+	docker compose up -d --build toolbox
+
+.PHONY: images
+images: minio-image ## Build the node and MinIO images
+	docker build -t disavery/node:local images/node

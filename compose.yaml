@@ -1,0 +1,43 @@
+name: disavery
+
+services:
+  toolbox:
+    build: images/toolbox
+    image: disavery/toolbox:local
+    container_name: disavery-toolbox
+    init: true
+    command: ["sleep", "infinity"]
+    working_dir: /work
+    environment:
+      SOPS_AGE_KEY_FILE: /secrets/age/keys.txt
+      ANSIBLE_CONFIG: /work/infra/ansible/ansible.cfg
+      TF_PLUGIN_CACHE_DIR: /root/.terraform.d/plugin-cache
+    volumes:
+      - .:/work
+      - /var/run/docker.sock:/var/run/docker.sock
+      - secrets:/secrets
+      - escrow:/escrow
+      - gocache:/root/.cache/go-build
+      - gomod:/go/pkg/mod
+      - tfcache:/root/.terraform.d/plugin-cache
+    networks:
+      wan:
+        ipv4_address: 172.31.0.2
+
+networks:
+  wan:
+    name: disavery-wan
+    labels:
+      disavery.env: drill
+    ipam:
+      config:
+        - subnet: 172.31.0.0/24
+
+volumes:
+  secrets:
+    name: disavery-secrets
+  escrow:
+    name: disavery-escrow
+  gocache: {}
+  gomod: {}
+  tfcache: {}

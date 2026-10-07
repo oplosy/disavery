@@ -105,6 +105,9 @@ linters:
     - bodyclose
     - errorlint
     - misspell
+  exclusions:
+    presets:
+      - std-error-handling
 ```
 
 `Makefile`:

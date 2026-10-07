@@ -1,4 +1,7 @@
-# Set by the S6 runbook from `disavery restore-point`.
+# S6 (random restore test) sets all of these from `disavery restore-point`.
+# Pilot light (S1) restores the latest set to the end of the archive and keeps
+# archiving, because the restored cluster becomes the new primary.
 restore_repo: 2
-restore_set: ""
-restore_target: "" # PostgreSQL timestamptz text, e.g. "2026-10-07 12:00:00.123+00"
+restore_set: ""     # "" = latest backup set
+restore_target: ""  # "" = end of the archive; else PostgreSQL timestamptz text, e.g. "2026-10-07 12:00:00.123+00"
+restore_isolated: true

@@ -49,6 +49,22 @@ Note: the spec lists monitoring in milestone 5, but S1's `detect` phase needs Al
   Integration tests use that image; the toolbox copies `minio` and `mc` from it;
   the Ansible MinIO role copies the binaries from the toolbox to the nodes
   instead of downloading them. ADR 0003 records the decision.
+- **Replicas are locked by a sweeper (2026-10-07).** MinIO does not apply the
+  vault bucket's default retention to replicated objects, so attachment
+  replicas arrived unlocked and the vault root could delete them (caught by
+  `make smoke`). A one-minute systemd timer on the vault locks unlocked versions
+  in compliance mode; the smoke test waits for the lock. ADR 0004.
+- **App → database over the zone network (2026-10-07).** Docker's DNS resolves
+  `db-<site>` to its zone address, so `pg_hba` allows the app from the site's
+  `zone_subnet` (exported by the Terraform inventory); replication stays on the WAN.
+- **Stable image IDs (2026-10-07).** With Docker 29's containerd image store,
+  BuildKit's default provenance attestation changes the image ID on every
+  cached rebuild, which made Terraform replace every node on the second
+  `make up`. Node and MinIO images are built with `--provenance=false`.
+- **Terraform on Docker 29 (2026-10-07).** Modules declare the
+  `kreuzwerker/docker` source; containers set `network_mode = "bridge"`,
+  networks set their IPAM gateway, and nodes reference the image by ID, because
+  the provider reads those values back and would otherwise force replacement.
 
 ## Review Focus
 
@@ -3394,6 +3410,9 @@ minio_mc_bin_src: /usr/local/bin/mc
 minio_scheme: "{{ 'https' if minio_profile == 'vault' else 'http' }}"
 minio_root_user: "{{ secrets.minio.vault_root_user if minio_profile == 'vault' else secrets.minio.site_root_user }}"
 minio_root_password: "{{ secrets.minio.vault_root_password if minio_profile == 'vault' else secrets.minio.site_root_password }}"
+# Replicas arrive without the bucket's default retention; a timer locks them (ADR 0004).
+minio_vault_replicated_buckets: [attachments]
+minio_vault_sweep_interval: 1min
 ```
 
 `infra/ansible/roles/minio/handlers/main.yml`:
@@ -3653,6 +3672,26 @@ WantedBy=multi-user.target
   ansible.builtin.command: mc admin policy attach local prod-writer --user {{ secrets.minio.vault_writer_access_key }}
   when: "'prod-writer' not in ((vault_writer_info.stdout | from_json).policyName | default('')).split(',')"
   changed_when: true
+
+- name: Install the replica lock sweeper
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: vault-lock-sweeper.sh.j2, dest: /usr/local/bin/vault-lock-sweeper, mode: "0755" }
+    - { src: vault-lock-sweeper.service.j2, dest: /etc/systemd/system/vault-lock-sweeper.service, mode: "0644" }
+    - { src: vault-lock-sweeper.timer.j2, dest: /etc/systemd/system/vault-lock-sweeper.timer, mode: "0644" }
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Restart the replica lock sweeper
+
+- name: Enable the replica lock sweeper
+  ansible.builtin.systemd_service:
+    name: vault-lock-sweeper.timer
+    state: started
+    enabled: true
+    daemon_reload: true
 ```
 
 - [ ] **Step 4: Write the site tasks**
@@ -4511,6 +4550,15 @@ done
 version=$(mc stat --json "vaultw/attachments/documents/$id" | jq -r .versionID)
 [[ -n $version && $version != null ]] || fail "attachment was not replicated to the vault"
 
+step "replica is locked in compliance mode by the sweeper"
+mode=""
+for _ in $(seq 1 90); do
+  mode=$(mc retention info --json --version-id "$version" "vaultroot/attachments/documents/$id" | jq -r .mode)
+  [[ $mode == COMPLIANCE ]] && break
+  sleep 1
+done
+[[ $mode == COMPLIANCE ]] || fail "replica still has retention mode '$mode'"
+
 step "production credentials cannot destroy vault versions"
 if mc rm --version-id "$version" "vaultw/attachments/documents/$id" >/dev/null 2>&1; then
   fail "production writer deleted a vault version"
@@ -4541,6 +4589,8 @@ destroy: down ## Remove everything, including secrets, escrow and the toolbox
 ```
 
 - [ ] **Step 3: Run from scratch**
+
+(Executed as `make down && make up` during implementation: CLAUDE.md forbids running `make destroy` unless the user asks.)
 
 ```bash
 make destroy || true
@@ -4580,6 +4630,8 @@ jobs:
       - name: Line endings are LF
         run: test -z "$(git ls-files --eol | grep -v 'i/lf' | grep -v 'i/-text')"
       - run: go vet ./...
+      - name: Build the MinIO image used by integration tests (ADR 0003)
+        run: make minio-image
       - run: go test -race ./...
       - uses: golangci/golangci-lint-action@v8
         with:
@@ -4640,7 +4692,10 @@ make down    # remove the lab containers (keeps secrets)
 make destroy # remove everything, including secrets and the escrow volume
 ```
 
-`make up` is idempotent; running it again changes nothing.
+`make up` is idempotent; running it again changes nothing. It takes about
+3 minutes with images cached; the first run also builds MinIO from source,
+since MinIO no longer publishes community builds
+([ADR 0003](docs/adr/0003-minio-built-from-source.md)).
 
 Secrets are generated once into the `disavery-secrets` volume, encrypted with
 SOPS/age; the age key is escrowed to the separate `disavery-escrow` volume.

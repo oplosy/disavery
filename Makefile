@@ -1,13 +1,17 @@
 SHELL := bash
 .DEFAULT_GOAL := help
 
+# Without provenance attestations a cached rebuild keeps the same image ID, so
+# Terraform does not replace every node on the next apply.
+BUILD_FLAGS := --provenance=false
+
 .PHONY: help
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 .PHONY: minio-image
 minio-image: ## Build MinIO and mc from pinned sources
-	docker build -t disavery/minio:local images/minio
+	docker build $(BUILD_FLAGS) -t disavery/minio:local images/minio
 
 .PHONY: test
 test: minio-image ## Run all Go tests (integration tests need Docker)
@@ -29,7 +33,7 @@ toolbox: minio-image ## Build and start the toolbox container
 
 .PHONY: images
 images: minio-image ## Build the node and MinIO images
-	docker build -t disavery/node:local images/node
+	docker build $(BUILD_FLAGS) -t disavery/node:local images/node
 
 .PHONY: secrets
 secrets: toolbox ## Generate local secrets once (SOPS + age, escrow copy)
@@ -52,3 +56,14 @@ configure: toolbox ## Configure all nodes with Ansible
 .PHONY: build
 build: toolbox ## Build Linux binaries into build/
 	$(TB) bash -c 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/ ./cmd/docsvc ./cmd/webhookmock'
+
+.PHONY: up
+up: images secrets build infra configure ## Bring the whole lab up (idempotent)
+
+.PHONY: smoke
+smoke: ## Run the end-to-end smoke test
+	$(TB) bash scripts/smoke.sh
+
+.PHONY: destroy
+destroy: down ## Remove everything, including secrets, escrow and the toolbox
+	docker compose down -v

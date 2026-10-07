@@ -21,6 +21,7 @@ locals {
       edge    = cidrhost(var.wan_subnet, 11)
       webhook = cidrhost(var.wan_subnet, 12)
       vault   = cidrhost(var.wan_subnet, 40)
+      restore = cidrhost(var.wan_subnet, 50)
     },
     {
       for pair in setproduct(keys(local.site_cfg), keys(local.site_roles)) :

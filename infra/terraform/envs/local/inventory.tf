@@ -9,6 +9,7 @@ resource "local_file" "inventory" {
         {
           webhooks = { hosts = { webhook = { wan_ip = local.ip.webhook } } }
           vaults   = { hosts = { vault = { wan_ip = local.ip.vault } } }
+          restores = { hosts = { for h in(var.restore_enabled ? ["restore"] : []) : h => { wan_ip = local.ip.restore } } }
         },
         {
           for role in keys(local.site_roles) : role => {

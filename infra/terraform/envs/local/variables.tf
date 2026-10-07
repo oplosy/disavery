@@ -43,3 +43,9 @@ variable "secrets_file" {
   type    = string
   default = "/secrets/local.sops.yaml"
 }
+
+variable "restore_enabled" {
+  description = "Create the isolated restore node (set by the S6 runbook, removed by its cleanup)."
+  type        = bool
+  default     = false
+}

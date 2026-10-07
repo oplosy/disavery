@@ -1,0 +1,23 @@
+# Restores a backup set to a point in time on the isolated restore node (S6).
+# Extra vars: restore_repo, restore_set, restore_target (see role restore).
+- name: Prepare the restore node
+  hosts: restores
+  gather_facts: false
+  tasks:
+    - name: Wait for SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 60
+
+    - name: Load SOPS secrets
+      community.sops.load_vars:
+        file: "{{ secrets_file }}"
+        name: secrets
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+- name: Restore
+  hosts: restores
+  roles:
+    - base
+    - restore

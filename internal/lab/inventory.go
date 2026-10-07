@@ -11,9 +11,10 @@ import (
 // Inventory is the part of the Terraform-generated Ansible inventory
 // (infra/ansible/inventory/hosts.yml) the CLI needs.
 type Inventory struct {
-	ActiveSite string
-	Groups     map[string][]string
-	Hosts      map[string]map[string]any
+	ActiveSite  string
+	StandbySite string // "" when there is no warm standby
+	Groups      map[string][]string
+	Hosts       map[string]map[string]any
 }
 
 // LoadInventory parses the generated inventory.
@@ -35,6 +36,7 @@ func LoadInventory(path string) (*Inventory, error) {
 	}
 	inv := &Inventory{Groups: map[string][]string{}, Hosts: map[string]map[string]any{}}
 	inv.ActiveSite, _ = raw.All.Vars["active_site"].(string)
+	inv.StandbySite, _ = raw.All.Vars["standby_site"].(string)
 	if inv.ActiveSite == "" {
 		return nil, fmt.Errorf("%s: all.vars.active_site is missing", path)
 	}

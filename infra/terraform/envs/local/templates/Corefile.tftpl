@@ -1,0 +1,15 @@
+disavery.test:53 {
+    hosts {
+        ${edge_ip} docs.disavery.test
+        ${direct_ip} direct.docs.disavery.test
+        ttl 30
+    }
+    errors
+    log
+}
+
+.:53 {
+    forward . /etc/resolv.conf
+    cache 30
+    errors
+}

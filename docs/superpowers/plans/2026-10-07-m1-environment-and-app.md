@@ -2635,8 +2635,8 @@ git commit -m "feat: add SOPS/age secrets bootstrap with key escrow"
 ### Task 10: Terraform — networks, nodes, global zone and inventory
 
 **Files:**
-- Create: `infra/terraform/modules/node/{main.tf,variables.tf,outputs.tf}`
-- Create: `infra/terraform/modules/site/{main.tf,variables.tf}`
+- Create: `infra/terraform/modules/node/{main.tf,variables.tf,outputs.tf,versions.tf}`
+- Create: `infra/terraform/modules/site/{main.tf,variables.tf,versions.tf}`
 - Create: `infra/terraform/envs/local/{versions.tf,variables.tf,main.tf,global.tf,sites.tf,vault.tf,inventory.tf,outputs.tf}`
 - Create: `infra/terraform/envs/local/templates/{Corefile.tftpl,Caddyfile.tftpl}`
 - Create: `docs/adr/0002-global-zone-survives-site-loss.md`
@@ -2690,14 +2690,24 @@ variable "labels" {
 `infra/terraform/modules/node/main.tf`:
 ```hcl
 # A lab machine: systemd + sshd container (see ADR 0001).
+
+# Resolve the tag to an image ID: the provider stores the ID, so passing the tag
+# would force a replacement on every apply.
+data "docker_image" "this" {
+  name = var.image
+}
+
 resource "docker_container" "this" {
   name       = var.name
   hostname   = var.name
-  image      = var.image
+  image      = data.docker_image.this.id
   privileged = true
   must_run   = true
   restart    = "no"
-  dns        = var.dns
+  # Docker reports "bridge" even when only networks_advanced are attached;
+  # leaving it unset makes every plan replace the container.
+  network_mode = "bridge"
+  dns          = var.dns
   tmpfs = {
     "/run"      = "rw"
     "/run/lock" = "rw"
@@ -2734,6 +2744,17 @@ resource "docker_container" "this" {
 ```hcl
 output "name" {
   value = docker_container.this.name
+}
+```
+
+`infra/terraform/modules/node/versions.tf` (identical copy in `modules/site/versions.tf`; without it the modules resolve `hashicorp/docker`, which does not exist):
+```hcl
+terraform {
+  required_providers {
+    docker = {
+      source = "kreuzwerker/docker"
+    }
+  }
 }
 ```
 
@@ -2779,7 +2800,8 @@ variable "uploads" {
 resource "docker_network" "zone" {
   name = "disavery-site-${var.site}"
   ipam_config {
-    subnet = var.subnet
+    subnet  = var.subnet
+    gateway = cidrhost(var.subnet, 1) # Docker fills it in; unset would force replacement
   }
   labels {
     label = "disavery.env"
@@ -2942,6 +2964,8 @@ resource "docker_container" "dns" {
   image   = docker_image.coredns.image_id
   command = ["-conf", "/Corefile"]
   restart = "unless-stopped"
+  # See modules/node: Docker reports "bridge" for networks_advanced-only containers.
+  network_mode = "bridge"
 
   networks_advanced {
     name         = data.docker_network.wan.name
@@ -2966,7 +2990,9 @@ resource "docker_container" "edge" {
   name    = "edge"
   image   = docker_image.caddy.image_id
   restart = "unless-stopped"
-  dns     = [local.ip.dns]
+  # See modules/node: Docker reports "bridge" for networks_advanced-only containers.
+  network_mode = "bridge"
+  dns          = [local.ip.dns]
 
   ports {
     internal = 443
@@ -3068,7 +3094,8 @@ module "site" {
 resource "docker_network" "vault" {
   name = "disavery-vault"
   ipam_config {
-    subnet = "172.31.3.0/24"
+    subnet  = "172.31.3.0/24"
+    gateway = "172.31.3.1" # Docker fills it in; unset would force replacement
   }
   labels {
     label = "disavery.env"

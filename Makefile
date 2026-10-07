@@ -34,3 +34,13 @@ images: minio-image ## Build the node and MinIO images
 .PHONY: secrets
 secrets: toolbox ## Generate local secrets once (SOPS + age, escrow copy)
 	$(TB) bash scripts/init-secrets.sh
+
+TF_DIR := infra/terraform/envs/local
+
+.PHONY: infra
+infra: toolbox ## Create networks and containers with Terraform
+	$(TB) bash -c 'cd $(TF_DIR) && terraform init -input=false && terraform workspace select -or-create drill && terraform apply -input=false -auto-approve'
+
+.PHONY: down
+down: ## Destroy Terraform-managed containers (keeps secrets and toolbox)
+	$(TB) bash -c 'cd $(TF_DIR) && terraform workspace select drill && terraform destroy -input=false -auto-approve'

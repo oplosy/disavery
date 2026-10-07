@@ -25,6 +25,12 @@ type Tier struct {
 	RPO       yamltime.Duration `yaml:"rpo"`
 	RTO       yamltime.Duration `yaml:"rto"`
 	Mechanism string            `yaml:"mechanism"`
+	// Cost is the proxy of spec success criterion 5: what runs all the time
+	// for this tier, and an estimated monthly cloud price (see docs/bia.md).
+	Cost struct {
+		AlwaysOnNodes int     `yaml:"always_on_nodes"`
+		MonthlyUSD    float64 `yaml:"monthly_usd"`
+	} `yaml:"cost"`
 }
 
 // BIA is the parsed bia.yaml.

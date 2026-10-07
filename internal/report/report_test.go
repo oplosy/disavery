@@ -153,3 +153,29 @@ func TestHistoryAndTrend(t *testing.T) {
 		t.Fatalf("table:\n%s", table)
 	}
 }
+
+func TestCompareTiers(t *testing.T) {
+	entry := func(tier string, rpo, rto float64, result report.Result) report.HistoryEntry {
+		return report.HistoryEntry{Scenario: "s1-site-loss", Tier: tier, Result: result, StartedAt: t0, Measurements: []report.Measurement{
+			{Name: "rpo", ActualSeconds: rpo, TargetSeconds: 60, Met: rpo <= 60},
+			{Name: "rto", ActualSeconds: rto, TargetSeconds: 900, Met: rto <= 900},
+		}}
+	}
+	history := []report.HistoryEntry{
+		entry("pilot-light", 24, 170, report.Pass),
+		entry("pilot-light", 72, 166, report.MissedTarget),
+		entry("warm-standby", 0.7, 53, report.Pass),
+		{Scenario: "s6-restore-test", Result: report.Pass},
+	}
+	rows := report.CompareTiers(history, "s1-site-loss", []report.TierSpec{
+		{Name: "pilot-light", TargetRPO: time.Minute, TargetRTO: 15 * time.Minute},
+		{Name: "warm-standby", TargetRPO: 5 * time.Second, TargetRTO: 2 * time.Minute, AlwaysOnNodes: 3, MonthlyUSD: 72},
+	})
+	if len(rows) != 2 || rows[0].Runs != 2 || rows[0].Passed != 1 || rows[0].RPO.Max != 72*time.Second || rows[1].RTO.Median != 53*time.Second {
+		t.Fatalf("rows %+v", rows)
+	}
+	table := report.RenderTierComparison(rows)
+	if !strings.Contains(table, "| warm-standby | 5s | 700ms (max 700ms) | 2m0s | 53s (max 53s) | 1/1 | 3 | $72 |") {
+		t.Fatalf("table:\n%s", table)
+	}
+}

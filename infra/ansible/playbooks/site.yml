@@ -37,3 +37,13 @@
   roles:
     - postgres
     - pgbackrest
+
+- name: Payment provider mock
+  hosts: webhooks
+  roles:
+    - webhookmock
+
+- name: Application
+  hosts: "app:&site_{{ target_site | default('a') }}"
+  roles:
+    - docsvc

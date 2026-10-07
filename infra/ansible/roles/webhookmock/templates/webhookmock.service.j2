@@ -1,0 +1,14 @@
+[Unit]
+Description=Fake payment provider
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+DynamicUser=yes
+EnvironmentFile=/etc/webhookmock.env
+ExecStart=/usr/local/bin/webhookmock
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

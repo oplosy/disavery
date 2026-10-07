@@ -48,3 +48,7 @@ down: ## Destroy Terraform-managed containers (keeps secrets and toolbox)
 .PHONY: configure
 configure: toolbox ## Configure all nodes with Ansible
 	$(TB) ansible-playbook infra/ansible/playbooks/site.yml
+
+.PHONY: build
+build: toolbox ## Build Linux binaries into build/
+	$(TB) bash -c 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/ ./cmd/docsvc ./cmd/webhookmock'

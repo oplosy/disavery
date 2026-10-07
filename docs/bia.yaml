@@ -1,0 +1,27 @@
+# Business impact analysis for docsvc, read by the disavery CLI.
+# The reasoning behind every number is in docs/bia.md.
+service: docsvc
+classification: tier-1
+
+tiers:
+  pilot-light:
+    rpo: 60s
+    rto: 15m
+    mechanism: pgBackRest async WAL archive (archive_timeout 30s); site-b built from scratch
+  warm-standby:
+    rpo: 5s
+    rto: 2m
+    mechanism: async streaming replica; site-b always running
+
+# S6, the random restore test: restore plus verification must finish within
+# max_duration; pitr_tolerance is the window around the PITR target in which
+# an in-flight write may legitimately land on either side.
+restore_test:
+  max_duration: 15m
+  pitr_tolerance: 1s
+
+# Preflight refuses to start a drill unless the environment is healthy.
+preflight:
+  max_backup_age: 2h       # incremental backups run hourly
+  max_archive_age: 90s     # archive_timeout is 30s and the canary writes every second
+  max_canary_silence: 10s

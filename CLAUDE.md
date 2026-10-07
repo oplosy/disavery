@@ -23,10 +23,9 @@ and spec disagree, raise it — don't silently diverge.
 ## Status
 
 M1 shipped (PR #2; see that plan's "Amendments during implementation": MinIO
-built from source, replica lock sweeper, Docker 29 quirks). The M2 plan is
-written and was verified on a prototype (see its "How this plan was verified"
-and "Decisions and spec clarifications"); implementation goes on branch
-`feat/m2-cli-core`. Update this section as milestones ship.
+built from source, replica lock sweeper, Docker 29 quirks). M2 is implemented on
+branch `feat/m2-cli-core` (all 14 plan tasks; see the plan's "Decisions and
+spec clarifications"). Next: plan 3. Update this section as milestones ship.
 
 | Milestone | Scope |
 |---|---|

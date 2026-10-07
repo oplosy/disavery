@@ -1,0 +1,215 @@
+# step remove-restore-node (run) in phase cleanup
+# start 2026-10-07T14:51:51.515980318Z
+# attempt 1
+module.vault.data.docker_image.this: Reading...
+module.site["a"].module.node["obj"].data.docker_image.this: Reading...
+module.site["a"].module.node["db"].data.docker_image.this: Reading...
+module.site["a"].module.node["app"].data.docker_image.this: Reading...
+data.docker_network.wan: Reading...
+module.webhook.data.docker_image.this: Reading...
+docker_network.vault: Refreshing state... [id=86c40c4609c729fbe4626e50b6a568862f986775c875e5f3bebe19c970970250]
+module.site["a"].docker_network.zone: Refreshing state... [id=753d1ba2f90f12ff2e18ee28aece3e6519f4ebc7c7d4e353d2b473f608858d2b]
+docker_image.caddy: Refreshing state... [id=sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530fcaddy:2.8.4]
+docker_image.coredns: Refreshing state... [id=sha256:9caabbf6238b189a65d0d6e6ac138de60d6a1c419e5a341fbbb7c78382559c6ecoredns/coredns:1.11.3]
+data.docker_network.wan: Read complete after 0s [id=41924cf4b208fd467ee4642801a045d68416561c03ceda4d40fad14b383b6ec2]
+data.sops_file.secrets: Reading...
+data.sops_file.secrets: Read complete after 0s [id=-]
+local_file.inventory: Refreshing state... [id=debcd9e1f67ed36fb30c80db584ae083303426ca]
+module.restore[0].docker_container.this: Refreshing state... [id=acb9a84fb1af178eccb78e240ae8ae3a860c3f65d56338268df01fb0abd1b242]
+module.webhook.data.docker_image.this: Read complete after 1s [id=sha256:a5b1b27fc32fa2adaaf4ca34e98e1fba5f255b7200a5b6c82926334199fdcd8c]
+module.vault.data.docker_image.this: Read complete after 1s [id=sha256:a5b1b27fc32fa2adaaf4ca34e98e1fba5f255b7200a5b6c82926334199fdcd8c]
+module.site["a"].module.node["db"].data.docker_image.this: Read complete after 1s [id=sha256:a5b1b27fc32fa2adaaf4ca34e98e1fba5f255b7200a5b6c82926334199fdcd8c]
+module.site["a"].module.node["obj"].data.docker_image.this: Read complete after 1s [id=sha256:a5b1b27fc32fa2adaaf4ca34e98e1fba5f255b7200a5b6c82926334199fdcd8c]
+module.site["a"].module.node["app"].data.docker_image.this: Read complete after 1s [id=sha256:a5b1b27fc32fa2adaaf4ca34e98e1fba5f255b7200a5b6c82926334199fdcd8c]
+module.webhook.docker_container.this: Refreshing state... [id=75b9f70114e9dfb5ee4fbcb7a91bd352c7aa0802df38cbaa3a99df5ab488e997]
+docker_container.dns: Refreshing state... [id=d78407167b8469e7d73485a841adb1ffbeef4865bef8f58223c2026ecffbe32c]
+docker_container.edge: Refreshing state... [id=cef160f04f6a27b07cf29a37ec0844f0c29f7e9bea6c6535be21c8d178bba2c2]
+module.site["a"].module.node["obj"].docker_container.this: Refreshing state... [id=49e89aa3b86665f6ceac74ba8e6662cec6d62f2e2ffda771f95d95cb0870962e]
+module.site["a"].module.node["db"].docker_container.this: Refreshing state... [id=ac37ae543475408b37131d5bdaa11f8f172c33e1cd257f8d2b4a3a29d789cbc8]
+module.vault.docker_container.this: Refreshing state... [id=ecb3ff67db2291240fa72583b9558fa0ab7f70c16366dd2fc4c5094dfacf57e2]
+module.site["a"].module.node["app"].docker_container.this: Refreshing state... [id=5dcb0efb74d91f09853c1be174ab071d14bc002b52d04eacfeec1cc3f3c4460b]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  - destroy
+-/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
+  # local_file.inventory must be replaced
+-/+ resource "local_file" "inventory" {
+      ~ content              = <<-EOT # forces replacement
+            "all":
+              "children":
+                "app":
+                  "hosts":
+                    "app-a":
+                      "site": "a"
+                      "wan_ip": "172.31.0.21"
+                      "zone_subnet": "172.31.1.0/24"
+                "db":
+                  "hosts":
+                    "db-a":
+                      "site": "a"
+                      "wan_ip": "172.31.0.22"
+                      "zone_subnet": "172.31.1.0/24"
+                "obj":
+                  "hosts":
+                    "obj-a":
+                      "site": "a"
+                      "wan_ip": "172.31.0.23"
+                      "zone_subnet": "172.31.1.0/24"
+                "restores":
+          -       "hosts":
+          -         "restore":
+          -           "wan_ip": "172.31.0.50"
+          +       "hosts": {}
+                "site_a":
+                  "hosts":
+                    "app-a": {}
+                    "db-a": {}
+                    "obj-a": {}
+                "site_b":
+                  "hosts": {}
+                "vaults":
+                  "hosts":
+                    "vault":
+                      "wan_ip": "172.31.0.40"
+                "webhooks":
+                  "hosts":
+                    "webhook":
+                      "wan_ip": "172.31.0.12"
+              "vars":
+                "active_site": "a"
+        EOT
+      ~ content_base64sha256 = "6OfDpHMeRobIoO7WKhDf0hhfZM0VEHS2WWMG3TlSocg=" -> (known after apply)
+      ~ content_base64sha512 = "6FepPK/8Kb6GTSMCytVcA7kD+u8o+vFzvEz1u3q+EJOZeqpf8U0njxz9ONTh5jDOLfQydkaeA2UdEXN6LJlknw==" -> (known after apply)
+      ~ content_md5          = "94e440c5253106d0578e137a269e1005" -> (known after apply)
+      ~ content_sha1         = "debcd9e1f67ed36fb30c80db584ae083303426ca" -> (known after apply)
+      ~ content_sha256       = "e8e7c3a4731e4686c8a0eed62a10dfd2185f64cd151074b6596306dd3952a1c8" -> (known after apply)
+      ~ content_sha512       = "e857a93caffc29be864d2302cad55c03b903faef28faf173bc4cf5bb7abe1093997aaa5ff14d278f1cfd38d4e1e630ce2df43276469e03651d11737a2c99649f" -> (known after apply)
+      ~ id                   = "debcd9e1f67ed36fb30c80db584ae083303426ca" -> (known after apply)
+        # (3 unchanged attributes hidden)
+    }
+
+  # module.restore[0].docker_container.this will be destroyed
+  # (because module.restore[0] is not in configuration)
+  - resource "docker_container" "this" {
+      - attach                                      = false -> null
+      - command                                     = [
+          - "/lib/systemd/systemd",
+        ] -> null
+      - container_read_refresh_timeout_milliseconds = 15000 -> null
+      - cpu_shares                                  = 0 -> null
+      - dns                                         = [
+          - "172.31.0.10",
+        ] -> null
+      - entrypoint                                  = [] -> null
+      - env                                         = [] -> null
+      - hostname                                    = "restore" -> null
+      - id                                          = "acb9a84fb1af178eccb78e240ae8ae3a860c3f65d56338268df01fb0abd1b242" -> null
+      - image                                       = "sha256:a5b1b27fc32fa2adaaf4ca34e98e1fba5f255b7200a5b6c82926334199fdcd8c" -> null
+      - init                                        = false -> null
+      - ipc_mode                                    = "private" -> null
+      - log_driver                                  = "json-file" -> null
+      - logs                                        = false -> null
+      - max_retry_count                             = 0 -> null
+      - memory                                      = 0 -> null
+      - memory_swap                                 = 0 -> null
+      - must_run                                    = true -> null
+      - name                                        = "restore" -> null
+      - network_data                                = [
+          - {
+              - gateway                   = "172.31.0.1"
+              - global_ipv6_prefix_length = 0
+              - ip_address                = "172.31.0.50"
+              - ip_prefix_length          = 24
+              - mac_address               = "c2:e5:10:4d:1f:cb"
+              - network_name              = "disavery-wan"
+                # (2 unchanged attributes hidden)
+            },
+        ] -> null
+      - network_mode                                = "bridge" -> null
+      - privileged                                  = true -> null
+      - publish_all_ports                           = false -> null
+      - read_only                                   = false -> null
+      - remove_volumes                              = true -> null
+      - restart                                     = "no" -> null
+      - rm                                          = false -> null
+      - runtime                                     = "runc" -> null
+      - security_opts                               = [
+          - "label=disable",
+        ] -> null
+      - shm_size                                    = 64 -> null
+      - start                                       = true -> null
+      - stdin_open                                  = false -> null
+      - stop_signal                                 = "SIGRTMIN+3" -> null
+      - stop_timeout                                = 0 -> null
+      - tmpfs                                       = {
+          - "/run"      = "rw"
+          - "/run/lock" = "rw"
+        } -> null
+      - tty                                         = false -> null
+      - wait                                        = false -> null
+      - wait_timeout                                = 60 -> null
+        # (7 unchanged attributes hidden)
+
+      - labels {
+          - label = "disavery.env" -> null
+          - value = "drill" -> null
+        }
+      - labels {
+          - label = "disavery.node" -> null
+          - value = "restore" -> null
+        }
+      - labels {
+          - label = "disavery.role" -> null
+          - value = "restore" -> null
+        }
+
+      - networks_advanced {
+          - aliases      = [
+              - "restore",
+            ] -> null
+          - ipv4_address = "172.31.0.50" -> null
+          - name         = "disavery-wan" -> null
+            # (1 unchanged attribute hidden)
+        }
+
+      - upload {
+          - content        = <<-EOT
+                ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKEeLGgZ409CSmAsXXdcuReyhhsR5SqJ9rqS06BDBgtg disavery
+            EOT -> null
+          - executable     = false -> null
+          - file           = "/root/.ssh/authorized_keys" -> null
+            # (3 unchanged attributes hidden)
+        }
+    }
+
+Plan: 1 to add, 0 to change, 2 to destroy.
+local_file.inventory: Destroying... [id=debcd9e1f67ed36fb30c80db584ae083303426ca]
+local_file.inventory: Destruction complete after 0s
+module.restore[0].docker_container.this: Destroying... [id=acb9a84fb1af178eccb78e240ae8ae3a860c3f65d56338268df01fb0abd1b242]
+local_file.inventory: Creating...
+local_file.inventory: Creation complete after 0s [id=ddd6e140de73251fdc7ca4efbd874eeab79b15db]
+module.restore[0].docker_container.this: Destruction complete after 0s
+
+Apply complete! Resources: 1 added, 0 changed, 2 destroyed.
+
+Outputs:
+
+active_site = "a"
+ip = {
+  "app-a" = "172.31.0.21"
+  "app-b" = "172.31.0.31"
+  "db-a" = "172.31.0.22"
+  "db-b" = "172.31.0.32"
+  "dns" = "172.31.0.10"
+  "edge" = "172.31.0.11"
+  "obj-a" = "172.31.0.23"
+  "obj-b" = "172.31.0.33"
+  "restore" = "172.31.0.50"
+  "vault" = "172.31.0.40"
+  "webhook" = "172.31.0.12"
+}
+# end 2026-10-07T14:51:55.277483006Z ok

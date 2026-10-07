@@ -1,0 +1,9 @@
+# step attachments (check) in phase verify
+# start 2026-10-07T14:51:51.26269076Z
+# attempt 1
+pass: all 531 documents have their attachment in vault; 0 orphan object(s)
+  metric documents = 531
+  metric objects = 659
+  metric missing = 0
+  metric orphans = 0
+# end 2026-10-07T14:51:51.515398988Z ok

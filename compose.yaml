@@ -20,9 +20,29 @@ services:
       - gocache:/root/.cache/go-build
       - gomod:/go/pkg/mod
       - tfcache:/root/.terraform.d/plugin-cache
+      - state:/state
     networks:
       wan:
         ipv4_address: 172.31.0.2
+
+  # Writes one acknowledged record per second through the public endpoint and
+  # journals it in /state; drills measure data loss against the journal.
+  canary:
+    image: disavery/toolbox:local
+    container_name: disavery-canary
+    init: true
+    restart: unless-stopped
+    command: ["/work/build/disavery", "canary", "run"]
+    working_dir: /work
+    environment:
+      SOPS_AGE_KEY_FILE: /secrets/age/keys.txt
+    volumes:
+      - .:/work:ro
+      - secrets:/secrets:ro
+      - state:/state
+    networks:
+      wan:
+        ipv4_address: 172.31.0.3
 
 networks:
   wan:
@@ -38,6 +58,8 @@ volumes:
     name: disavery-secrets
   escrow:
     name: disavery-escrow
+  state:
+    name: disavery-state
   gocache: {}
   gomod: {}
   tfcache: {}

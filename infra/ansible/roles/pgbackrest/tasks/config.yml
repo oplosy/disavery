@@ -1,0 +1,29 @@
+- name: Install pgBackRest
+  ansible.builtin.apt:
+    name: pgbackrest
+
+- name: Remove the legacy configuration file
+  ansible.builtin.file:
+    path: /etc/pgbackrest.conf
+    state: absent
+
+- name: Create pgBackRest directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+  loop:
+    - /etc/pgbackrest
+    - "{{ pgbackrest_repo1_path }}"
+    - /var/spool/pgbackrest
+    - /var/log/pgbackrest
+
+- name: Configure pgBackRest
+  ansible.builtin.template:
+    src: pgbackrest.conf.j2
+    dest: /etc/pgbackrest/pgbackrest.conf
+    owner: postgres
+    group: postgres
+    mode: "0600"

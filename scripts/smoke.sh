@@ -77,4 +77,10 @@ if mc rm --version-id "$version" "vaultroot/attachments/documents/$id" >/dev/nul
   fail "a locked version was deleted"
 fi
 
+step "canary writes are acknowledged and journaled"
+last=$(tail -n 1 /state/canary/journal.jsonl 2>/dev/null | jq -r .acked)
+[[ -n $last && $last != null ]] || fail "canary journal is empty; is the canary service running?"
+age=$(( $(date +%s) - $(date -d "$last" +%s) ))
+(( age <= 10 )) || fail "last canary write was acknowledged ${age}s ago"
+
 printf '\nSMOKE PASS\n'

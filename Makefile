@@ -22,8 +22,9 @@ test-short: ## Run unit tests only
 	go test -short ./...
 
 .PHONY: lint
-lint: ## Run golangci-lint
+lint: ## Run golangci-lint and validate runbooks
 	golangci-lint run
+	go run ./cmd/disavery runbook lint
 
 TB := docker compose exec -T toolbox
 
@@ -55,10 +56,10 @@ configure: toolbox ## Configure all nodes with Ansible
 
 .PHONY: build
 build: toolbox ## Build Linux binaries into build/
-	$(TB) bash -c 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/ ./cmd/docsvc ./cmd/webhookmock'
+	$(TB) bash -c 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/ ./cmd/docsvc ./cmd/webhookmock ./cmd/disavery'
 
 .PHONY: up
-up: images secrets build infra configure ## Bring the whole lab up (idempotent)
+up: images secrets build infra configure canary ## Bring the whole lab up (idempotent)
 
 .PHONY: smoke
 smoke: ## Run the end-to-end smoke test
@@ -67,3 +68,12 @@ smoke: ## Run the end-to-end smoke test
 .PHONY: destroy
 destroy: down ## Remove everything, including secrets, escrow and the toolbox
 	docker compose down -v
+
+.PHONY: canary
+canary: build ## Start the canary writer (restarted so it runs the current binary)
+	docker compose up -d canary
+	docker compose restart canary
+
+.PHONY: drill
+drill: ## Run a drill: make drill SCENARIO=s6-restore-test [TIER=warm-standby] [ARGS=--yes]
+	$(TB) build/disavery drill run $(SCENARIO) $(if $(TIER),--tier $(TIER)) $(ARGS)

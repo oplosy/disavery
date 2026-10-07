@@ -1,0 +1,37 @@
+- name: Add the PGDG signing key
+  ansible.builtin.get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /usr/share/keyrings/pgdg.asc
+    mode: "0644"
+
+- name: Add the PGDG repository
+  ansible.builtin.copy:
+    content: "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main\n"
+    dest: /etc/apt/sources.list.d/pgdg.list
+    mode: "0644"
+  register: pgdg_repo
+
+- name: Install postgresql-common
+  ansible.builtin.apt:
+    name: postgresql-common
+    update_cache: "{{ pgdg_repo.changed }}"
+
+# createcluster.conf includes this directory, but the package does not create it.
+- name: Create the createcluster.d directory
+  ansible.builtin.file:
+    path: /etc/postgresql-common/createcluster.d
+    state: directory
+    mode: "0755"
+
+- name: Create new clusters with data checksums
+  ansible.builtin.copy:
+    content: "initdb_options = '--data-checksums'\n"
+    dest: /etc/postgresql-common/createcluster.d/disavery.conf
+    mode: "0644"
+
+- name: Install PostgreSQL
+  ansible.builtin.apt:
+    name:
+      - "postgresql-{{ pg_version }}"
+      - "postgresql-client-{{ pg_version }}"
+      - python3-psycopg2

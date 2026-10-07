@@ -1,0 +1,56 @@
+- name: Check the restore parameters
+  ansible.builtin.assert:
+    that:
+      - restore_set | length > 0
+      - restore_target | length > 0
+    fail_msg: restore_set and restore_target are required
+
+- name: Install PostgreSQL
+  ansible.builtin.include_role:
+    name: postgres
+    tasks_from: install
+    public: true
+
+- name: Install and configure pgBackRest
+  ansible.builtin.include_role:
+    name: pgbackrest
+    tasks_from: config
+
+# Defence in depth next to --archive-mode=off below: a restored cluster that
+# archived into the production stanza would corrupt the repositories.
+- name: Never archive from the restored cluster
+  ansible.builtin.copy:
+    content: "# Managed by Ansible (role restore).\narchive_mode = off\n"
+    dest: "{{ postgres_conf_dir }}/conf.d/restore.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+
+- name: Stop PostgreSQL
+  ansible.builtin.systemd_service:
+    name: "{{ postgres_service }}"
+    state: stopped
+
+- name: Restore the backup set to the target time
+  ansible.builtin.command: >-
+    pgbackrest --stanza={{ pgbackrest_stanza }} --repo={{ restore_repo }} --set={{ restore_set }}
+    --type=time "--target={{ restore_target }}" --target-action=promote
+    --archive-mode=off --delta restore
+  become: true
+  become_user: postgres
+  changed_when: true
+
+- name: Start PostgreSQL
+  ansible.builtin.systemd_service:
+    name: "{{ postgres_service }}"
+    state: started
+
+- name: Wait until recovery reaches the target and the cluster is promoted
+  ansible.builtin.command: psql -XAtc "SELECT pg_is_in_recovery()"
+  become: true
+  become_user: postgres
+  register: restore_recovery
+  until: restore_recovery.stdout == "f"
+  retries: 120
+  delay: 5
+  changed_when: false

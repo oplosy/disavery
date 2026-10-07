@@ -1,0 +1,4 @@
+# Set by the S6 runbook from `disavery restore-point`.
+restore_repo: 2
+restore_set: ""
+restore_target: "" # PostgreSQL timestamptz text, e.g. "2026-10-07 12:00:00.123+00"

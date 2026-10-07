@@ -1,0 +1,10 @@
+# step pitr (check) in phase verify
+# start 2026-10-07T14:51:50.091692279Z
+# attempt 1
+pass: restore matches 2026-10-07T14:50:10.933Z: all 119 writes acknowledged before it are present, none of the 98 sent after it
+  metric must_exist = 119
+  metric must_not_exist = 98
+  metric missing = 0
+  metric unexpected = 0
+  metric newest_write_before_target_seconds = 0.726380144
+# end 2026-10-07T14:51:50.316964223Z ok

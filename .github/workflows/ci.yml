@@ -19,6 +19,8 @@ jobs:
       - name: Build the MinIO image used by integration tests (ADR 0003)
         run: make minio-image
       - run: go test -race ./...
+      - name: Runbooks are valid
+        run: go run ./cmd/disavery runbook lint
       - uses: golangci/golangci-lint-action@v8
         with:
           version: latest

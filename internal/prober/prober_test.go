@@ -95,3 +95,21 @@ func TestProbeRoundTrip(t *testing.T) {
 		t.Fatalf("samples %+v", got)
 	}
 }
+
+func TestLongestOutage(t *testing.T) {
+	tests := []struct {
+		pattern   string
+		longest   time.Duration
+		recovered bool
+	}{
+		{"++++", 0, true},
+		{"+--+---+", 1500 * time.Millisecond, true},
+		{"+--+--", time.Second, false},
+	}
+	for _, tc := range tests {
+		longest, recovered := prober.LongestOutage(samples(tc.pattern))
+		if longest != tc.longest || recovered != tc.recovered {
+			t.Fatalf("%s: %s %v", tc.pattern, longest, recovered)
+		}
+	}
+}

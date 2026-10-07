@@ -306,11 +306,14 @@ func (c PITR) Run(ctx context.Context, p Params) (Result, error) {
 	return out, nil
 }
 
-// errNoIncident marks checks that only apply to scenarios with an injection.
-var errNoIncident = errors.New("no incident in this scenario")
+// rpoLookback is how far before an incident LiveRPO looks for the last
+// surviving write; it bounds the largest RPO it can report.
+const rpoLookback = 15 * time.Minute
 
-// LiveRPO measures actual data loss after an incident from the canary journal
-// and the writes that survived in production.
+// LiveRPO measures actual data loss from the canary journal and the writes
+// that survived in production. With an incident (an inject phase) it reports
+// the spec's actual RPO; without one, as in a controlled switchover (S7), any
+// lost acknowledged write since the drill started fails the check.
 type LiveRPO struct {
 	Journal   func() ([]canary.Entry, error)
 	Survivors func(ctx context.Context, from int64) (map[int64]bool, error)
@@ -319,40 +322,66 @@ type LiveRPO struct {
 
 // Run implements Check.
 func (c LiveRPO) Run(ctx context.Context, p Params) (Result, error) {
-	if p.Incident == nil {
-		return Result{Status: Skip, Summary: errNoIncident.Error()}, nil
-	}
 	entries, err := c.Journal()
 	if err != nil {
 		return Result{}, err
 	}
+	// With an incident, look back well before it: the writes that were lost
+	// were acknowledged before the drill started, and the last survivor may
+	// be minutes old. A switchover only answers for its own writes.
+	since, incident := p.Start, p.Now
+	if p.Incident != nil {
+		lookback, err := p.Duration("lookback", rpoLookback)
+		if err != nil {
+			return Result{}, err
+		}
+		since, incident = p.Incident.Add(-lookback), *p.Incident
+	}
 	var from int64
 	for _, e := range entries {
-		if !e.Acked.Before(p.Start) {
+		if !e.Acked.Before(since) {
 			from = e.Seq
 			break
 		}
 	}
 	if from == 0 {
-		return Result{}, errors.New("canary journal has no writes since the drill started")
+		return Result{}, errors.New("canary journal has no writes in the evaluated window")
 	}
 	survived, err := c.Survivors(ctx, from)
 	if err != nil {
 		return Result{}, err
 	}
-	r := canary.LiveRPO(entries, p.Start, *p.Incident, p.Now, func(s int64) bool { return survived[s] })
-	m := Measurement{Name: "rpo", Actual: r.Value, Target: c.Target}
+	r := canary.LiveRPO(entries, since, incident, p.Now, func(s int64) bool { return survived[s] })
 	res := Result{
-		Status:       Pass,
-		Summary:      fmt.Sprintf("actual RPO %s (target %s); %d of %d acknowledged writes lost", r.Value.Round(time.Millisecond), c.Target, len(r.Lost), r.Considered),
-		Metrics:      map[string]float64{"rpo_seconds": r.Value.Seconds(), "lost": float64(len(r.Lost)), "anomalies": float64(len(r.Anomalies))},
-		Details:      append(details("lost writes (seq)", r.Lost, 10), details("ordering anomalies: older write lost while a newer one survived (seq)", r.Anomalies, 10)...),
-		Measurements: []Measurement{m},
+		Status:  Pass,
+		Metrics: map[string]float64{"lost": float64(len(r.Lost)), "anomalies": float64(len(r.Anomalies)), "acknowledged": float64(r.Considered)},
+		Details: append(details("lost writes (seq)", r.Lost, 10), details("ordering anomalies: older write lost while a newer one survived (seq)", r.Anomalies, 10)...),
 	}
+	if p.Incident == nil {
+		if len(r.Lost) > 0 {
+			res.Status = Fail
+			res.Summary = fmt.Sprintf("%d of %d acknowledged writes were lost; a controlled switchover must lose none", len(r.Lost), r.Considered)
+			return res, nil
+		}
+		res.Summary = fmt.Sprintf("all %d writes acknowledged since the drill started survived", r.Considered)
+		res.Measurements = []Measurement{{Name: "rpo", Actual: 0, Target: c.Target}}
+		return res, nil
+	}
+	if r.LastSurvivor == nil {
+		res.Status = Fail
+		res.Summary = fmt.Sprintf("no write acknowledged in the %s before the incident survived", incident.Sub(since))
+		return res, nil
+	}
+	res.Metrics["rpo_seconds"] = r.Value.Seconds()
+	res.Summary = fmt.Sprintf("actual RPO %s (target %s); %d of %d acknowledged writes lost",
+		r.Value.Round(time.Millisecond), c.Target, len(r.Lost), r.Considered)
+	res.Measurements = []Measurement{{Name: "rpo", Actual: r.Value, Target: c.Target}}
 	return res, nil
 }
 
-// LiveRTO measures actual downtime after an incident from the prober samples.
+// LiveRTO measures availability from the prober samples. With an incident it
+// reports the actual RTO; without one (a controlled switchover) it reports
+// the longest outage as downtime against the same target.
 type LiveRTO struct {
 	Samples func() []prober.Sample
 	Target  time.Duration
@@ -361,13 +390,20 @@ type LiveRTO struct {
 
 // Run implements Check.
 func (c LiveRTO) Run(_ context.Context, p Params) (Result, error) {
-	if p.Incident == nil {
-		return Result{Status: Skip, Summary: errNoIncident.Error()}, nil
-	}
 	samples := c.Samples()
-	rto, down, ok := prober.RTO(samples, *p.Incident, c.Streak)
 	total, failed := prober.Availability(samples)
 	metrics := map[string]float64{"probes": float64(total), "failed_probes": float64(failed)}
+	if p.Incident == nil {
+		outage, recovered := prober.LongestOutage(samples)
+		metrics["downtime_seconds"] = outage.Seconds()
+		if !recovered {
+			return Result{Status: Fail, Summary: "the service was still down when verification started", Metrics: metrics}, nil
+		}
+		return Result{Status: Pass, Metrics: metrics,
+			Summary:      fmt.Sprintf("longest outage %s (target %s)", outage.Round(time.Millisecond), c.Target),
+			Measurements: []Measurement{{Name: "downtime", Actual: outage, Target: c.Target}}}, nil
+	}
+	rto, down, ok := prober.RTO(samples, *p.Incident, c.Streak)
 	if !ok {
 		return Result{Status: Fail, Summary: fmt.Sprintf("service did not recover: no %d consecutive successful probes after the outage", c.Streak), Metrics: metrics}, nil
 	}

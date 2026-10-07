@@ -151,3 +151,19 @@ func Availability(samples []Sample) (total, failed int) {
 	}
 	return len(samples), failed
 }
+
+// LongestOutage returns the longest run of failed probes, from its first
+// failure to the next success. recovered is false if the last probe failed.
+func LongestOutage(samples []Sample) (longest time.Duration, recovered bool) {
+	var start time.Time
+	inOutage := false
+	for _, s := range samples {
+		switch {
+		case !s.OK && !inOutage:
+			start, inOutage = s.At, true
+		case s.OK && inOutage:
+			longest, inOutage = max(longest, s.At.Sub(start)), false
+		}
+	}
+	return longest, !inOutage
+}

@@ -166,13 +166,13 @@ phases:
 	return res
 }
 
-// onFailure returns the effective on_failure: verification continues so
-// every check reports, everything else aborts.
+// onFailure returns the effective on_failure: verification (and a drill's
+// preflight) continues so every check reports, everything else aborts.
 func onFailure(s runbook.Step, phase string) string {
 	if s.OnFailure != "" {
 		return s.OnFailure
 	}
-	if phase == "verify" {
+	if phase == "verify" || phase == "preflight" {
 		return "continue"
 	}
 	return "abort"

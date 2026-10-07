@@ -35,8 +35,11 @@ type Runbook struct {
 	Description string            `yaml:"description"`
 	Tiers       []string          `yaml:"tiers"`
 	Vars        map[string]string `yaml:"vars"`
-	Phases      []Phase           `yaml:"phases"`
-	Cleanup     []Step            `yaml:"cleanup"`
+	// Preflight checks must all pass before anything changes; a failure ends
+	// the drill as ERROR with the lab untouched.
+	Preflight []Step  `yaml:"preflight"`
+	Phases    []Phase `yaml:"phases"`
+	Cleanup   []Step  `yaml:"cleanup"`
 
 	Path string `yaml:"-"`
 }

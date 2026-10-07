@@ -14,17 +14,19 @@ matters as much as correctness.
 Source of truth:
 
 - Design spec: `docs/superpowers/specs/2026-10-07-disavery-dr-design.md`
-- Current plan (M1 of 5): `docs/superpowers/plans/2026-10-07-m1-environment-and-app.md`
+- Current plan (M2 of 5): `docs/superpowers/plans/2026-10-07-m2-cli-core-and-s6.md`
+- Previous plan (M1, shipped): `docs/superpowers/plans/2026-10-07-m1-environment-and-app.md`
 
 Read the relevant spec section and plan task before changing anything. If code
 and spec disagree, raise it — don't silently diverge.
 
 ## Status
 
-M1 is implemented on branch `feat/m1-environment` (all 15 plan tasks; see the
-plan's "Amendments during implementation" for deviations: MinIO built from
-source, replica lock sweeper, Docker 29 quirks). Next: plan 2. Update this
-section as milestones ship.
+M1 shipped (PR #2; see that plan's "Amendments during implementation": MinIO
+built from source, replica lock sweeper, Docker 29 quirks). The M2 plan is
+written and was verified on a prototype (see its "How this plan was verified"
+and "Decisions and spec clarifications"); implementation goes on branch
+`feat/m2-cli-core`. Update this section as milestones ship.
 
 | Milestone | Scope |
 |---|---|

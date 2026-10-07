@@ -1,0 +1,14 @@
+ansible_user: root
+ansible_ssh_private_key_file: /secrets/ssh/id_ed25519
+ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+
+secrets_file: /secrets/local.sops.yaml
+wan_subnet: 172.31.0.0/24
+disavery_ca_path: /usr/local/share/ca-certificates/disavery-ca.crt
+
+pg_version: 16
+pgbackrest_stanza: main
+
+minio_release: RELEASE.2024-10-13T13-34-11Z
+mc_release: RELEASE.2024-10-08T09-37-26Z
+vault_retention_days: 14

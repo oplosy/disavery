@@ -44,3 +44,7 @@ infra: toolbox ## Create networks and containers with Terraform
 .PHONY: down
 down: ## Destroy Terraform-managed containers (keeps secrets and toolbox)
 	$(TB) bash -c 'cd $(TF_DIR) && terraform workspace select drill && terraform destroy -input=false -auto-approve'
+
+.PHONY: configure
+configure: toolbox ## Configure all nodes with Ansible
+	$(TB) ansible-playbook infra/ansible/playbooks/site.yml

@@ -3236,7 +3236,7 @@ git commit -m "feat: add Terraform lab environment and generated inventory"
 
 **Interfaces:**
 - Consumes: inventory from Task 10; secrets from Task 9.
-- Produces: fact `secrets` (decrypted SOPS map) on every host for the rest of the play run; disavery CA trusted system-wide on every node at `/usr/local/share/ca-certificates/disavery-ca.crt`; group vars `pg_version: 16`, `pgbackrest_stanza: main`, `wan_subnet`, `secrets_file`, `minio_release`, `mc_release`, `vault_retention_days: 14`; play variable `target_site` (extra var, default `a`). Make target `configure`.
+- Produces: fact `secrets` (decrypted SOPS map) on every host for the rest of the play run; disavery CA trusted system-wide on every node at `/usr/local/share/ca-certificates/disavery-ca.crt`; group vars `pg_version: 16`, `pgbackrest_stanza: main`, `wan_subnet`, `secrets_file`, `vault_retention_days: 14`; play variable `target_site` (extra var, default `a`). Make target `configure`.
 
 - [ ] **Step 1: Write configuration and group vars**
 
@@ -3274,8 +3274,6 @@ disavery_ca_path: /usr/local/share/ca-certificates/disavery-ca.crt
 pg_version: 16
 pgbackrest_stanza: main
 
-minio_release: RELEASE.2024-10-13T13-34-11Z
-mc_release: RELEASE.2024-10-08T09-37-26Z
 vault_retention_days: 14
 ```
 
@@ -3369,7 +3367,7 @@ git commit -m "feat: add Ansible skeleton and base role"
 - Create: `infra/ansible/roles/minio/handlers/main.yml`
 - Create: `infra/ansible/roles/minio/templates/{minio.env.j2,minio.service.j2,prod-writer.json.j2}`
 - Create: `infra/ansible/roles/minio/files/docsvc-policy.json`
-- Create: `docs/adr/0003-minio-pinned-release.md`
+- Create: `docs/adr/0003-minio-built-from-source.md`
 - Modify: `infra/ansible/playbooks/site.yml`
 
 **Interfaces:**
@@ -3386,8 +3384,9 @@ git commit -m "feat: add Ansible skeleton and base role"
 minio_profile: site # site | vault
 minio_data_dir: /var/lib/minio
 minio_certs_dir: /etc/minio/certs
-minio_bin_url: "https://dl.min.io/server/minio/release/linux-amd64/archive/minio.{{ minio_release }}"
-mc_bin_url: "https://dl.min.io/client/mc/release/linux-amd64/archive/mc.{{ mc_release }}"
+# Built from pinned sources into the toolbox image (ADR 0003); paths on the controller.
+minio_bin_src: /usr/local/bin/minio
+minio_mc_bin_src: /usr/local/bin/mc
 minio_scheme: "{{ 'https' if minio_profile == 'vault' else 'http' }}"
 minio_root_user: "{{ secrets.minio.vault_root_user if minio_profile == 'vault' else secrets.minio.site_root_user }}"
 minio_root_password: "{{ secrets.minio.vault_root_password if minio_profile == 'vault' else secrets.minio.site_root_password }}"
@@ -3499,17 +3498,15 @@ WantedBy=multi-user.target
     create_home: false
 
 - name: Install MinIO server
-  ansible.builtin.get_url:
-    url: "{{ minio_bin_url }}"
-    checksum: "sha256:{{ minio_bin_url }}.sha256sum"
+  ansible.builtin.copy:
+    src: "{{ minio_bin_src }}"
     dest: /usr/local/bin/minio
     mode: "0755"
   notify: Restart MinIO
 
 - name: Install MinIO client
-  ansible.builtin.get_url:
-    url: "{{ mc_bin_url }}"
-    checksum: "sha256:{{ mc_bin_url }}.sha256sum"
+  ansible.builtin.copy:
+    src: "{{ minio_mc_bin_src }}"
     dest: /usr/local/bin/mc
     mode: "0755"
 
@@ -3598,10 +3595,13 @@ WantedBy=multi-user.target
 `infra/ansible/roles/minio/tasks/vault.yml`:
 ```yaml
 - name: Create Object Lock buckets
-  ansible.builtin.command: mc mb --ignore-existing --with-lock local/{{ item }}
+  ansible.builtin.command: mc mb --with-lock local/{{ item }}
   loop: [pgbackrest, attachments]
   register: vault_mb
-  changed_when: "'created successfully' in vault_mb.stdout"
+  # This mc release claims "created successfully" for existing buckets even with
+  # --ignore-existing, so treat its "already own it" error as unchanged instead.
+  changed_when: vault_mb.rc == 0
+  failed_when: vault_mb.rc != 0 and 'already own it' not in vault_mb.stderr
 
 - name: Set default compliance retention
   ansible.builtin.command: mc retention set --default compliance {{ vault_retention_days }}d local/{{ item }}
@@ -3639,11 +3639,16 @@ WantedBy=multi-user.target
   changed_when: false
   no_log: true
 
+- name: Read the production writer's policies
+  ansible.builtin.command: mc admin user info --json local {{ secrets.minio.vault_writer_access_key }}
+  register: vault_writer_info
+  changed_when: false
+
+# Attaching is not idempotent in this mc release (rc 0 every time), so check first.
 - name: Attach the policy to the production writer
   ansible.builtin.command: mc admin policy attach local prod-writer --user {{ secrets.minio.vault_writer_access_key }}
-  register: vault_attach
-  changed_when: vault_attach.rc == 0
-  failed_when: vault_attach.rc != 0 and 'already' not in (vault_attach.stderr + vault_attach.stdout)
+  when: "'prod-writer' not in ((vault_writer_info.stdout | from_json).policyName | default('')).split(',')"
+  changed_when: true
 ```
 
 - [ ] **Step 4: Write the site tasks**
@@ -3651,9 +3656,11 @@ WantedBy=multi-user.target
 `infra/ansible/roles/minio/tasks/site.yml`:
 ```yaml
 - name: Create the attachments bucket
-  ansible.builtin.command: mc mb --ignore-existing local/attachments
+  ansible.builtin.command: mc mb local/attachments
   register: site_mb
-  changed_when: "'created successfully' in site_mb.stdout"
+  # See vault.yml: --ignore-existing always reports "created successfully".
+  changed_when: site_mb.rc == 0
+  failed_when: site_mb.rc != 0 and 'already own it' not in site_mb.stderr
 
 - name: Enable versioning
   ansible.builtin.command: mc version enable local/attachments
@@ -3675,11 +3682,16 @@ WantedBy=multi-user.target
   changed_when: false
   no_log: true
 
+- name: Read the docsvc user's policies
+  ansible.builtin.command: mc admin user info --json local {{ secrets.minio.app_access_key }}
+  register: site_app_info
+  changed_when: false
+
+# See vault.yml: attaching is not idempotent in this mc release.
 - name: Attach the policy to docsvc
   ansible.builtin.command: mc admin policy attach local docsvc-rw --user {{ secrets.minio.app_access_key }}
-  register: site_attach
-  changed_when: site_attach.rc == 0
-  failed_when: site_attach.rc != 0 and 'already' not in (site_attach.stderr + site_attach.stdout)
+  when: "'docsvc-rw' not in ((site_app_info.stdout | from_json).policyName | default('')).split(',')"
+  changed_when: true
 
 - name: Read replication rules
   ansible.builtin.command: mc replicate ls --json local/attachments
@@ -3718,27 +3730,41 @@ Append to `infra/ansible/playbooks/site.yml`:
 
 - [ ] **Step 6: Write ADR 0003**
 
-`docs/adr/0003-minio-pinned-release.md`:
+`docs/adr/0003-minio-built-from-source.md`:
 ```markdown
-# ADR 0003: Pin an archived MinIO release
+# ADR 0003: Build a pinned MinIO release from source
 
 - Status: accepted
 - Date: 2026-10-07
 
 ## Context
-MinIO's community edition stopped publishing new pre-built binaries and images
-in late 2025. The lab needs S3 Object Lock, versioning and bucket replication.
+The lab needs S3 Object Lock, versioning and bucket replication; MinIO provides
+all three. MinIO's community edition is archived: the `minio/minio` Docker Hub
+repository no longer exists and `dl.min.io` answers `410 Gone` for every
+community release, including the archive. The source repositories and their
+release tags are still available on GitHub (read-only).
 
 ## Decision
-Pin `minio` and `mc` to archived releases from `dl.min.io/.../archive/`
-(`RELEASE.2024-10-13T13-34-11Z`, `RELEASE.2024-10-08T09-37-26Z`), verified by
-their published SHA-256 sums. The same server tag is used by integration tests.
+Build `minio` (`RELEASE.2024-10-13T13-34-11Z`) and `mc`
+(`RELEASE.2024-10-08T09-37-26Z`) from their upstream tags in
+`images/minio/Dockerfile`. Each tag is checked against a pinned commit SHA, so a
+re-pointed tag fails the build. The resulting image `disavery/minio:local` is
+used by the integration tests; the toolbox copies both binaries from it, and
+Ansible copies them from the toolbox to the nodes.
+
+Alternatives considered: the maintained `pgsty` fork (gets security fixes, but
+is a fast-moving third party that was being renamed at the time) and replacing
+MinIO with another Object Lock-capable store such as RustFS or Ceph RGW (a
+larger design change with unproven compliance-mode behaviour in this lab).
 
 ## Consequences
-- Reproducible builds; no dependency on future MinIO distribution policy.
+- Reproducible builds with no dependency on MinIO's distribution policy; the
+  only external inputs are the Git tags and the Go toolchain image.
+- The first build takes a few minutes; Docker's layer cache makes later ones
+  instant. CI must build the image before integration tests.
 - No security fixes after the pinned date — acceptable for an isolated lab.
-- If the archive disappears, alternatives with Object Lock support must be
-  evaluated (e.g. Ceph RGW); the S3 API surface used here is standard.
+- If the GitHub repositories disappear, switch to a fork or another
+  Object Lock-capable store; the S3 API surface used here is standard.
 ```
 
 - [ ] **Step 7: Verify, including the immutability guarantees**
@@ -3765,7 +3791,7 @@ Expected: default retention `COMPLIANCE 14 days`; `writer denied: ok`; `root den
 - [ ] **Step 8: Commit**
 
 ```bash
-git add infra/ansible docs/adr/0003-minio-pinned-release.md
+git add infra/ansible docs/adr/0003-minio-built-from-source.md
 git commit -m "feat: add MinIO role with immutable vault and replication"
 ```
 

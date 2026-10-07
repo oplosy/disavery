@@ -19,3 +19,15 @@
   hosts: all
   roles:
     - base
+
+- name: Vault object store
+  hosts: vaults
+  roles:
+    - role: minio
+      minio_profile: vault
+
+- name: Site object store
+  hosts: "obj:&site_{{ target_site | default('a') }}"
+  roles:
+    - role: minio
+      minio_profile: site

@@ -1,0 +1,55 @@
+- name: Create Object Lock buckets
+  ansible.builtin.command: mc mb --with-lock local/{{ item }}
+  loop: [pgbackrest, attachments]
+  register: vault_mb
+  # This mc release claims "created successfully" for existing buckets even with
+  # --ignore-existing, so treat its "already own it" error as unchanged instead.
+  changed_when: vault_mb.rc == 0
+  failed_when: vault_mb.rc != 0 and 'already own it' not in vault_mb.stderr
+
+- name: Set default compliance retention
+  ansible.builtin.command: mc retention set --default compliance {{ vault_retention_days }}d local/{{ item }}
+  loop: [pgbackrest, attachments]
+  changed_when: false
+
+- name: Read lifecycle rules
+  ansible.builtin.command: mc ilm rule ls --json local/{{ item }}
+  loop: [pgbackrest, attachments]
+  register: vault_ilm
+  changed_when: false
+  failed_when: false
+
+- name: Expire noncurrent versions once the lock has lapsed
+  ansible.builtin.command: mc ilm rule add --noncurrent-expire-days {{ vault_retention_days + 1 }} local/{{ item.item }}
+  loop: "{{ vault_ilm.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: "'NoncurrentVersionExpiration' not in item.stdout"
+  changed_when: true
+
+- name: Write the production writer policy
+  ansible.builtin.template:
+    src: prod-writer.json.j2
+    dest: /etc/minio/prod-writer.json
+    mode: "0644"
+
+- name: Create the production writer policy
+  ansible.builtin.command: mc admin policy create local prod-writer /etc/minio/prod-writer.json
+  changed_when: false
+
+- name: Create the production writer user
+  ansible.builtin.command: >-
+    mc admin user add local {{ secrets.minio.vault_writer_access_key }} {{ secrets.minio.vault_writer_secret_key }}
+  changed_when: false
+  no_log: true
+
+- name: Read the production writer's policies
+  ansible.builtin.command: mc admin user info --json local {{ secrets.minio.vault_writer_access_key }}
+  register: vault_writer_info
+  changed_when: false
+
+# Attaching is not idempotent in this mc release (rc 0 every time), so check first.
+- name: Attach the policy to the production writer
+  ansible.builtin.command: mc admin policy attach local prod-writer --user {{ secrets.minio.vault_writer_access_key }}
+  when: "'prod-writer' not in ((vault_writer_info.stdout | from_json).policyName | default('')).split(',')"
+  changed_when: true

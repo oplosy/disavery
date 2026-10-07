@@ -53,3 +53,23 @@
   ansible.builtin.command: mc admin policy attach local prod-writer --user {{ secrets.minio.vault_writer_access_key }}
   when: "'prod-writer' not in ((vault_writer_info.stdout | from_json).policyName | default('')).split(',')"
   changed_when: true
+
+- name: Install the replica lock sweeper
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: vault-lock-sweeper.sh.j2, dest: /usr/local/bin/vault-lock-sweeper, mode: "0755" }
+    - { src: vault-lock-sweeper.service.j2, dest: /etc/systemd/system/vault-lock-sweeper.service, mode: "0644" }
+    - { src: vault-lock-sweeper.timer.j2, dest: /etc/systemd/system/vault-lock-sweeper.timer, mode: "0644" }
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Restart the replica lock sweeper
+
+- name: Enable the replica lock sweeper
+  ansible.builtin.systemd_service:
+    name: vault-lock-sweeper.timer
+    state: started
+    enabled: true
+    daemon_reload: true

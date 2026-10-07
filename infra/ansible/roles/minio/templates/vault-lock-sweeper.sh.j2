@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Managed by Ansible (role minio). MinIO does not apply a bucket's default
+# retention to replicated objects, so replicas from the sites arrive unlocked.
+# Lock every version that has no retention yet; locked versions are skipped so
+# their retention is never extended.
+set -euo pipefail
+
+status=0
+for bucket in {{ minio_vault_replicated_buckets | join(' ') }}; do
+  info=$(mc retention info --recursive --versions --json "local/$bucket")
+  if jq -se 'any(.[]; .status != "success")' <<<"$info" >/dev/null; then
+    jq -r 'select(.status != "success") | "cannot read retention: \(.urlpath // "?"): \(.error)"' <<<"$info" >&2
+    status=1
+  fi
+  while IFS=$'\t' read -r version path; do
+    [[ -n $version ]] || continue
+    mc retention set --version-id "$version" compliance {{ vault_retention_days }}d "$path"
+  done < <(jq -r 'select(.status == "success" and .mode == "") | [.versionID, .urlpath] | @tsv' <<<"$info")
+done
+exit "$status"

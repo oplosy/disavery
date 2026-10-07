@@ -1,0 +1,10 @@
+[Unit]
+Description=Lock replicated objects in the vault every {{ minio_vault_sweep_interval }}
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ minio_vault_sweep_interval }}
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

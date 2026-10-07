@@ -7,3 +7,6 @@ minio_mc_bin_src: /usr/local/bin/mc
 minio_scheme: "{{ 'https' if minio_profile == 'vault' else 'http' }}"
 minio_root_user: "{{ secrets.minio.vault_root_user if minio_profile == 'vault' else secrets.minio.site_root_user }}"
 minio_root_password: "{{ secrets.minio.vault_root_password if minio_profile == 'vault' else secrets.minio.site_root_password }}"
+# Replicas arrive without the bucket's default retention; a timer locks them (ADR 0004).
+minio_vault_replicated_buckets: [attachments]
+minio_vault_sweep_interval: 1min

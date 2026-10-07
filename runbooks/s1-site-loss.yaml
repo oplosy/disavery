@@ -1,0 +1,111 @@
+id: s1-site-loss
+description: >-
+  Lose the whole production site at once and recover in site b: from the
+  vault (pilot light) or by promoting the streaming replica (warm standby),
+  then move traffic and third parties to site b.
+tiers: [pilot-light, warm-standby]
+vars:
+  from_site: a
+  to_site: b
+preflight:
+  - id: topology-pilot-light
+    when: "tier == 'pilot-light'"
+    check: topology
+    with: { active_site: a, standby_site: "" }
+  - id: topology-warm-standby
+    when: "tier == 'warm-standby'"
+    check: topology
+    with: { active_site: a, standby_site: b }
+  - id: replica-healthy
+    when: "tier == 'warm-standby'"
+    check: replication
+    with: { primary: db-a, standby: db-b, max_lag: 5s }
+  - id: standby-store-in-sync
+    when: "tier == 'warm-standby'"
+    check: store-sync
+    with: { source: obj-a, replica: obj-b }
+phases:
+  - name: inject
+    steps:
+      # Every machine of the site crashes at once; disks survive, which is what
+      # makes a pg_rewind failback (s7-failback) possible.
+      - id: kill-site-a
+        run: docker kill app-{{.from_site}} db-{{.from_site}} obj-{{.from_site}}
+        timeout: 1m
+  - name: detect
+    steps:
+      - id: primary-down-alert
+        wait_alert: PostgresPrimaryDown
+        timeout: 2m
+  - name: decide
+    steps:
+      - id: declare-disaster
+        manual: "Site a is down. Declare a disaster and fail over to site b?"
+        auto_after: 30s
+  - name: recover
+    steps:
+      # Pilot light: site b does not exist yet; build it from the vault.
+      - id: provision-site-b
+        when: "tier == 'pilot-light'"
+        run: >-
+          build/disavery env set site_b_enabled=true &&
+          terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve
+          -target='module.site["{{.to_site}}"]' -target=local_file.inventory
+        timeout: 5m
+      - id: build-site-b
+        when: "tier == 'pilot-light'"
+        run: ansible-playbook infra/ansible/playbooks/pilot-light.yml -e dr_site={{.to_site}}
+        timeout: 20m
+      - id: copy-attachments
+        when: "tier == 'pilot-light'"
+        run: build/disavery attachments copy --from vault --to obj-{{.to_site}}
+        timeout: 20m
+      # Warm standby: promote the replica, let it archive, start the app.
+      - id: promote-db-b
+        when: "tier == 'warm-standby'"
+        ssh:
+          host: db-{{.to_site}}
+          cmd: >-
+            pg_ctlcluster 16 main promote &&
+            until [ "$(runuser -u postgres -- psql -XAtc 'SELECT pg_is_in_recovery()')" = f ]; do sleep 0.2; done
+        timeout: 1m
+      # The local repository (repo1) is new on this node. The archiver starts
+      # pushing right after promotion and holds pgBackRest's lock, so wait for it.
+      - id: archive-from-b
+        when: "tier == 'warm-standby'"
+        ssh:
+          host: db-{{.to_site}}
+          cmd: "until runuser -u postgres -- pgbackrest --stanza=main stanza-create; do sleep 2; done"
+        timeout: 2m
+      - id: start-app-b
+        when: "tier == 'warm-standby'"
+        ssh: { host: "app-{{.to_site}}", cmd: "systemctl enable --now docsvc" }
+        timeout: 1m
+      # Both tiers: DNS, edge and inventory first, then the third parties.
+      # Only targeted applies while site a is down: a full apply would try to
+      # replace its crashed containers.
+      - id: repoint-traffic
+        run: >-
+          build/disavery env set active_site={{.to_site}} standby_site= &&
+          terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve
+          -target=docker_container.dns -target=docker_container.edge -target=local_file.inventory
+        timeout: 5m
+      - id: repoint-third-parties
+        run: ansible-playbook infra/ansible/playbooks/repoint.yml
+        timeout: 10m
+      - id: service-ready
+        wait_http: { url: "https://docs.disavery.test/readyz" }
+        timeout: 2m
+      # Not on the RTO path: the new primary's first local backup.
+      - id: first-backup-on-b
+        when: "tier == 'warm-standby'"
+        ssh: { host: "db-{{.to_site}}", cmd: "runuser -u postgres -- pgbackrest --stanza=main --repo=1 --type=full backup" }
+        timeout: 10m
+  - name: verify
+    steps:
+      - { id: data-loss, check: canary }
+      - { id: recovery-time, check: prober }
+      - { id: integrity, check: amcheck, with: { host: "db-{{.to_site}}" } }
+      - { id: rules, check: business-rules, with: { host: "db-{{.to_site}}" } }
+      - { id: attachments, check: db-object-consistency, with: { host: "db-{{.to_site}}", store: "obj-{{.to_site}}" } }
+      - { id: payment-callback, check: webhook-roundtrip }

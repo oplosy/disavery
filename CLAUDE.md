@@ -24,9 +24,9 @@ and spec disagree, raise it — don't silently diverge.
 ## Status
 
 M1 shipped (PR #2) and M2 shipped (PR #4); see each plan's amendments and
-decisions for deviations from the spec. The M3 plan is written and was verified
-on a prototype (see its "How this plan was verified"); implementation goes on
-branch `feat/m3-site-b`. Update this section as milestones ship.
+decisions for deviations from the spec. M3 is implemented on branch
+`feat/m3-site-b` (all 10 plan tasks; S1 and S7 pass on both tiers). Next:
+plan 4. Update this section as milestones ship.
 
 | Milestone | Scope |
 |---|---|

@@ -4,16 +4,17 @@ Disaster recovery architecture for PostgreSQL that proves recovery instead of
 assuming it: automated backups to two repositories (one immutable), measured
 RPO/RTO drills, pilot light vs. warm standby, failover and failback.
 
-> Status: milestone 2 of 5 — the lab, the protected application, backups to two
-> repositories and the drill CLI with the random restore test (S6). Site loss
-> and failover arrive in milestone 3. Design: [spec](docs/superpowers/specs/2026-10-07-disavery-dr-design.md).
+> Status: milestone 3 of 5 — the lab, backups to two repositories, the drill CLI,
+> the random restore test (S6), site loss (S1) and failback (S7) on both DR tiers
+> with alerting. Design: [spec](docs/superpowers/specs/2026-10-07-disavery-dr-design.md).
 
 ## What runs
 
 | Zone | Nodes | Purpose |
 |---|---|---|
-| global | `dns` (CoreDNS), `edge` (Caddy), `webhook` | External DNS, edge/CDN and a fake payment provider |
+| global | `dns` (CoreDNS), `edge` (Caddy), `webhook`, `prometheus`, `alertmanager` | External DNS, edge/CDN, a fake payment provider and alerting |
 | site-a | `app-a` (docsvc), `db-a` (PostgreSQL 16 + pgBackRest), `obj-a` (MinIO) | Production |
+| site-b | `app-b`, `db-b`, `obj-b` | DR site: absent (pilot light) or a streaming replica with the app stopped (warm standby) |
 | vault | `vault` (MinIO, Object Lock) | Immutable backup copy in a "separate account" |
 
 Every node is a systemd container created by Terraform and configured by Ansible
@@ -41,7 +42,10 @@ SOPS/age; the age key is escrowed to the separate `disavery-escrow` volume.
 ## Drills
 
 ```bash
-make drill SCENARIO=s6-restore-test   # random backup + random PITR target, restored and verified
+make drill SCENARIO=s6-restore-test                                # random backup + random PITR target, restored and verified
+make drill SCENARIO=s1-site-loss TIER=pilot-light ARGS=--yes       # kill site a, rebuild site b from the vault
+make drill SCENARIO=s7-failback TIER=pilot-light                   # bring site a back without losing a DR write
+docker compose exec toolbox build/disavery env reset --tier warm-standby   # switch the lab to the other tier
 ```
 
 A drill checks the lab is healthy, runs its [runbook](docs/runbooks.md) while a
@@ -49,11 +53,19 @@ prober watches production, and writes `reports/<run>/report.md` (target vs.
 actual, phase timings, verification, timeline) plus `report.json` and per-step
 logs. A canary service journals one acknowledged write per second, so data loss
 and point-in-time accuracy are measured, not assumed. Targets and thresholds are
-in the [BIA](docs/bia.md). Example: [a passing restore test](reports/samples/s6-restore-test/report.md).
+in the [BIA](docs/bia.md). Examples: [a passing restore test](reports/samples/s6-restore-test/report.md),
+[site loss on warm standby](reports/samples/s1-site-loss-warm-standby/report.md),
+[failback from pilot light](reports/samples/s7-failback-pilot-light/report.md) and
+[the tier comparison](reports/samples/tier-comparison.md).
 
 ```bash
 docker compose exec toolbox build/disavery report trend   # history of all drills
+docker compose exec toolbox build/disavery report tiers   # pilot light vs. warm standby: measured RPO/RTO and cost
 ```
+
+Prometheus (http://localhost:9090) raises `PostgresPrimaryDown`, which a site-loss
+drill waits for to measure detection time. Drills found and fixed a real RPO
+problem: [ADR 0005](docs/adr/0005-checkpoint-after-start.md).
 
 ## Development
 

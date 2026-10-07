@@ -1,0 +1,5 @@
+# step fence-old-app (ssh) in phase recover
+# start 2026-10-07T18:35:20.251105226Z
+# attempt 1
+Removed "/etc/systemd/system/multi-user.target.wants/docsvc.service".
+# end 2026-10-07T18:35:20.536540775Z ok

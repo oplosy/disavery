@@ -9,6 +9,8 @@ id: s6-restore-test            # must equal the file name
 description: Restore a random backup and verify it.
 tiers: []                      # DR tiers from docs/bia.yaml; empty = restore test
 vars: { repo: "2" }            # string variables for templates and conditions
+preflight:                     # checks only; any failure ends the drill as ERROR, untouched
+  - { id: topo, check: topology, with: { active_site: a, standby_site: "" } }
 phases:                        # fixed names, in this order, each at most once:
   - name: recover              # inject, detect, decide, recover, verify
     steps:
@@ -33,7 +35,7 @@ runbook) and exactly one kind:
 | `sleep` | duration | Waits |
 | `manual` | prompt, `auto_after` | Asks the operator; unattended runs continue after `auto_after`. The decision is recorded |
 | `check` | name, `with` | Runs a built-in verifier (below) |
-| `wait_alert` | alert name | Reserved; arrives with Alertmanager in milestone 3 |
+| `wait_alert` | alert name | Waits until Alertmanager reports the alert as active (detection time) |
 
 Common fields:
 
@@ -42,7 +44,7 @@ Common fields:
 | `when` | Condition, e.g. `tier == 'pilot-light'`; `==`, `!=`, `&&`, `\|\|` over variables and quoted strings |
 | `timeout` | Per attempt, e.g. `5m` |
 | `retries` | Extra attempts (0–10) |
-| `on_failure` | `abort` (default) or `continue` (default in `verify`, so every check reports) |
+| `on_failure` | `abort` (default) or `continue` (default in `verify` and `preflight`, so every check reports) |
 | `capture` | `run`/`ssh` only: stores stdout as a variable; a JSON object becomes a map (`{{.point.set}}`) |
 
 ## Templates and variables
@@ -60,8 +62,12 @@ captured values, and the built-ins `scenario`, `tier`, `env`, `run_id`,
 | `business-rules` | `host`; optional `as_of`, `tolerance`, `compare_host` | Business rules hold; with `as_of`, no document newer than the target and the same number of older documents as `compare_host` |
 | `db-object-consistency` | `host`, `store` (`vault` or `obj-<site>`); optional `as_of`, `grace` | Every document's attachment exists; orphan objects are reported |
 | `pitr` | `host`, `target`; optional `tolerance` | The restore contains every canary write acknowledged before the target and none sent after it |
-| `canary` | — | Actual RPO after the incident (scenarios with `inject`) |
-| `prober` | — | Actual RTO after the incident (scenarios with `inject`) |
+| `canary` | optional `lookback` (15m) | With an `inject` phase: actual RPO (last surviving write before the incident) and lost writes. Without: a controlled switchover must lose no acknowledged write |
+| `prober` | — | With an `inject` phase: actual RTO. Without: the longest outage, as downtime |
+| `replication` | `primary`, `standby`; optional `max_lag` (5s) | The standby streams from the primary within the lag |
+| `topology` | `active_site`, `standby_site` | The lab is in the expected topology (`disavery env set`) |
+| `store-sync` | `source`, `replica`; optional `grace` (60s) | The standby attachment store holds every current object of the active one |
+| `webhook-roundtrip` | optional `timeout` (30s) | A new document is marked paid by the payment provider's callback: allowlist, DNS, TLS and secret all work |
 
 ## Results
 

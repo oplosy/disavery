@@ -1,0 +1,5 @@
+# step primary-down-alert (wait_alert) in phase detect
+# start 2026-10-07T18:39:33.539075228Z
+# attempt 1
+PostgresPrimaryDown is firing
+# end 2026-10-07T18:39:50.566047202Z ok

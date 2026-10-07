@@ -1,0 +1,6 @@
+# step payment-callback (check) in phase verify
+# start 2026-10-07T18:46:40.124910992Z
+# attempt 1
+pass: document 0d54f568-540c-48e3-94fb-cc8e46178ca2 marked paid by the provider's callback after 1.01s
+  metric callback_seconds = 1.005566661
+# end 2026-10-07T18:46:41.151158868Z ok

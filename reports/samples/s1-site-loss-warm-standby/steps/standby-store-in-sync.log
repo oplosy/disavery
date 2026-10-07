@@ -1,0 +1,7 @@
+# step standby-store-in-sync (check) in phase preflight
+# start 2026-10-07T18:33:38.30599207Z
+# attempt 1
+pass: obj-b holds all 3144 attachments of obj-a
+  metric source_objects = 3144
+  metric missing = 0
+# end 2026-10-07T18:33:39.656845668Z ok

@@ -1,0 +1,5 @@
+# step start-app-b (ssh) in phase recover
+# start 2026-10-07T18:34:34.665179427Z
+# attempt 1
+Created symlink /etc/systemd/system/multi-user.target.wants/docsvc.service → /etc/systemd/system/docsvc.service.
+# end 2026-10-07T18:34:34.942508839Z ok

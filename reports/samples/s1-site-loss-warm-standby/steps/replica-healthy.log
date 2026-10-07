@@ -1,0 +1,6 @@
+# step replica-healthy (check) in phase preflight
+# start 2026-10-07T18:33:38.081127474Z
+# attempt 1
+pass: db-b streams from db-a, replay lag 3ms
+  metric replay_lag_seconds = 0.003147
+# end 2026-10-07T18:33:38.30510134Z ok

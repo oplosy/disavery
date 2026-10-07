@@ -1,0 +1,151 @@
+# step repoint-third-parties (run) in phase recover
+# start 2026-10-07T18:45:28.377338611Z
+# attempt 1
+
+PLAY [Prepare] *****************************************************************
+
+TASK [Wait for SSH] ************************************************************
+ok: [app-a]
+ok: [db-a]
+ok: [webhook]
+ok: [obj-a]
+
+TASK [Load SOPS secrets] *******************************************************
+ok: [webhook]
+ok: [app-a]
+ok: [db-a]
+ok: [obj-a]
+
+TASK [Gather facts] ************************************************************
+ok: [webhook]
+ok: [obj-a]
+ok: [db-a]
+ok: [app-a]
+
+PLAY [Payment provider allowlist] **********************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [webhook]
+
+TASK [webhookmock : Install the webhookmock binary] ****************************
+ok: [webhook]
+
+TASK [webhookmock : Write the webhookmock environment] *************************
+changed: [webhook]
+
+TASK [webhookmock : Install the webhookmock unit] ******************************
+ok: [webhook]
+
+TASK [webhookmock : Start webhookmock] *****************************************
+ok: [webhook]
+
+TASK [webhookmock : Apply webhookmock restarts now] ****************************
+
+RUNNING HANDLER [webhookmock : Restart webhookmock] ****************************
+changed: [webhook]
+
+TASK [webhookmock : Wait for webhookmock] **************************************
+ok: [webhook]
+
+PLAY [Active site's attachments replicate to the vault] ************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [obj-a]
+
+TASK [minio : Create minio-user] ***********************************************
+ok: [obj-a]
+
+TASK [minio : Install MinIO server] ********************************************
+ok: [obj-a]
+
+TASK [minio : Install MinIO client] ********************************************
+ok: [obj-a]
+
+TASK [minio : Create MinIO directories] ****************************************
+ok: [obj-a] => (item=/var/lib/minio)
+ok: [obj-a] => (item=/etc/minio/certs)
+ok: [obj-a] => (item=/etc/minio/certs/CAs)
+
+TASK [minio : Trust the disavery CA for outbound TLS (replication)] ************
+ok: [obj-a]
+
+TASK [minio : Install the vault TLS certificate] *******************************
+skipping: [obj-a] => (item=public.crt) 
+skipping: [obj-a] => (item=private.key) 
+skipping: [obj-a]
+
+TASK [minio : Write MinIO environment] *****************************************
+ok: [obj-a]
+
+TASK [minio : Install MinIO unit] **********************************************
+ok: [obj-a]
+
+TASK [minio : Start MinIO] *****************************************************
+ok: [obj-a]
+
+TASK [minio : Apply MinIO restarts now] ****************************************
+
+TASK [minio : Wait for MinIO to be ready] **************************************
+ok: [obj-a]
+
+TASK [minio : Configure the local mc alias] ************************************
+ok: [obj-a]
+
+TASK [minio : Apply profile-specific configuration] ****************************
+included: /work/infra/ansible/roles/minio/tasks/site.yml for obj-a
+
+TASK [minio : Create the attachments bucket] ***********************************
+ok: [obj-a]
+
+TASK [minio : Enable versioning] ***********************************************
+ok: [obj-a]
+
+TASK [minio : Copy the docsvc policy] ******************************************
+ok: [obj-a]
+
+TASK [minio : Create the docsvc policy] ****************************************
+ok: [obj-a]
+
+TASK [minio : Create the docsvc user] ******************************************
+ok: [obj-a]
+
+TASK [minio : Read the docsvc user's policies] *********************************
+ok: [obj-a]
+
+TASK [minio : Attach the policy to docsvc] *************************************
+skipping: [obj-a]
+
+TASK [minio : Read replication rules] ******************************************
+ok: [obj-a]
+
+TASK [minio : Index replication rules by priority] *****************************
+ok: [obj-a]
+
+TASK [minio : Replicate attachments to the vault] ******************************
+skipping: [obj-a]
+
+TASK [minio : Replicate attachments to the standby site] ***********************
+skipping: [obj-a]
+
+TASK [minio : Stop replicating to a site that is no longer a standby] **********
+skipping: [obj-a]
+
+TASK [minio : Point mc at the active site's store] *****************************
+skipping: [obj-a]
+
+TASK [minio : Copy the attachments the standby lacks] **************************
+skipping: [obj-a]
+
+PLAY [Monitoring targets] ******************************************************
+
+TASK [monitoring_targets : Publish the database scrape targets] ****************
+changed: [localhost]
+
+PLAY RECAP *********************************************************************
+app-a                      : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+db-a                       : ok=3    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+localhost                  : ok=1    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+obj-a                      : ok=23   changed=0    unreachable=0    failed=0    skipped=7    rescued=0    ignored=0   
+webhook                    : ok=10   changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+# end 2026-10-07T18:45:40.976305236Z ok

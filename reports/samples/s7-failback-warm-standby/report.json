@@ -1,0 +1,385 @@
+{
+  "schema_version": 1,
+  "run_id": "20261007T183517Z-s7-failback-warm-standby",
+  "scenario": "s7-failback",
+  "description": "After a site loss, bring site a back and move service home without losing a write made in the DR site: rewind (warm standby) or restore (pilot light) site a as a replica of site b, then a controlled switchover.",
+  "tier": "warm-standby",
+  "env": "drill",
+  "result": "PASS",
+  "seed": 1791398117315695499,
+  "started_at": "2026-10-07T18:35:17.376984007Z",
+  "finished_at": "2026-10-07T18:38:35.493190787Z",
+  "data": {
+    "db_host": "db-b",
+    "env": "drill",
+    "from_site": "b",
+    "report_dir": "reports/20261007T183517Z-s7-failback-warm-standby",
+    "run_id": "20261007T183517Z-s7-failback-warm-standby",
+    "scenario": "s7-failback",
+    "seed": "1791398117315695499",
+    "tier": "warm-standby",
+    "to_site": "a"
+  },
+  "measurements": [
+    {
+      "name": "rpo",
+      "target_seconds": 5,
+      "actual_seconds": 0,
+      "met": true
+    },
+    {
+      "name": "downtime",
+      "target_seconds": 120,
+      "actual_seconds": 5.000737395,
+      "met": true
+    }
+  ],
+  "preflight": [
+    {
+      "name": "app-ready",
+      "status": "pass",
+      "detail": "https://docs.disavery.test/readyz answered 200"
+    },
+    {
+      "name": "backups-fresh",
+      "status": "pass",
+      "detail": "newest backups: repo1 full 13s ago, repo2 incr 35m15s ago"
+    },
+    {
+      "name": "wal-archive",
+      "status": "pass",
+      "detail": "last WAL segment archived 12s ago"
+    },
+    {
+      "name": "canary-writing",
+      "status": "pass",
+      "detail": "last acknowledged canary write 626ms ago (seq 1791397673733)"
+    },
+    {
+      "name": "vault-reachable",
+      "status": "pass",
+      "detail": "https://vault:9000/minio/health/live answered 200"
+    },
+    {
+      "name": "escrow-present",
+      "status": "pass",
+      "detail": "/escrow/age-keys.txt matches the current age key"
+    },
+    {
+      "name": "no-firing-alerts",
+      "status": "pass",
+      "detail": "Alertmanager reports no active alert"
+    },
+    {
+      "name": "running-in-dr",
+      "status": "pass",
+      "detail": "site b active, no standby"
+    }
+  ],
+  "phases": [
+    {
+      "name": "recover",
+      "start": "2026-10-07T18:35:17.913134214Z",
+      "end": "2026-10-07T18:38:31.849907836Z"
+    },
+    {
+      "name": "verify",
+      "start": "2026-10-07T18:38:31.849909276Z",
+      "end": "2026-10-07T18:38:35.492562474Z"
+    }
+  ],
+  "steps": [
+    {
+      "id": "start-site-a",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:35:17.913135242Z",
+      "end": "2026-10-07T18:35:19.038862334Z"
+    },
+    {
+      "id": "fence-old-primary",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:35:19.039537089Z",
+      "end": "2026-10-07T18:35:20.250532807Z"
+    },
+    {
+      "id": "fence-old-app",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:35:20.251105226Z",
+      "end": "2026-10-07T18:35:20.536801809Z"
+    },
+    {
+      "id": "rewind-db-a",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:35:20.537210066Z",
+      "end": "2026-10-07T18:35:20.773784281Z"
+    },
+    {
+      "id": "backup-db-b",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "skipped",
+      "start": "2026-10-07T18:35:20.77437299Z",
+      "end": "2026-10-07T18:35:20.774398236Z"
+    },
+    {
+      "id": "restore-db-a",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "skipped",
+      "start": "2026-10-07T18:35:20.774422591Z",
+      "end": "2026-10-07T18:35:20.774426005Z"
+    },
+    {
+      "id": "rejoin-as-standby",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:35:20.774428954Z",
+      "end": "2026-10-07T18:36:35.855721893Z"
+    },
+    {
+      "id": "stop-app-b",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:35.856343356Z",
+      "end": "2026-10-07T18:36:36.147593174Z"
+    },
+    {
+      "id": "stop-db-b",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:36.148161213Z",
+      "end": "2026-10-07T18:36:36.866763937Z"
+    },
+    {
+      "id": "promote-db-a",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:36.867434831Z",
+      "end": "2026-10-07T18:36:37.657717663Z"
+    },
+    {
+      "id": "copy-dr-attachments",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:37.658475668Z",
+      "end": "2026-10-07T18:36:38.447781745Z"
+    },
+    {
+      "id": "start-app-a",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:38.44833406Z",
+      "end": "2026-10-07T18:36:38.775679225Z"
+    },
+    {
+      "id": "repoint-traffic",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:38.776115084Z",
+      "end": "2026-10-07T18:36:42.552142086Z"
+    },
+    {
+      "id": "repoint-third-parties",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:42.552705612Z",
+      "end": "2026-10-07T18:36:57.570004851Z"
+    },
+    {
+      "id": "service-ready",
+      "phase": "recover",
+      "kind": "wait_http",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:57.570665953Z",
+      "end": "2026-10-07T18:36:57.578289374Z"
+    },
+    {
+      "id": "rewind-db-b",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:57.578852928Z",
+      "end": "2026-10-07T18:36:57.851551465Z"
+    },
+    {
+      "id": "baseline-warm-standby",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:36:57.852170928Z",
+      "end": "2026-10-07T18:38:31.849091313Z"
+    },
+    {
+      "id": "baseline-pilot-light",
+      "phase": "recover",
+      "kind": "run",
+      "status": "skipped",
+      "start": "2026-10-07T18:38:31.84983101Z",
+      "end": "2026-10-07T18:38:31.849875403Z"
+    },
+    {
+      "id": "data-loss",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:38:31.849910042Z",
+      "end": "2026-10-07T18:38:31.87640033Z",
+      "check": {
+        "name": "canary",
+        "status": "pass",
+        "summary": "all 187 writes acknowledged since the drill started survived",
+        "metrics": {
+          "acknowledged": 187,
+          "anomalies": 0,
+          "lost": 0
+        }
+      }
+    },
+    {
+      "id": "downtime",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:38:31.876816511Z",
+      "end": "2026-10-07T18:38:31.879322647Z",
+      "check": {
+        "name": "prober",
+        "status": "pass",
+        "summary": "longest outage 5.001s (target 2m0s)",
+        "metrics": {
+          "downtime_seconds": 5.000737395,
+          "failed_probes": 10,
+          "probes": 387
+        }
+      }
+    },
+    {
+      "id": "integrity",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:38:31.879744545Z",
+      "end": "2026-10-07T18:38:32.217419476Z",
+      "check": {
+        "name": "amcheck",
+        "status": "pass",
+        "summary": "pg_amcheck found no corruption in docsvc (heap and all indexes)"
+      }
+    },
+    {
+      "id": "rules",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:38:32.217890196Z",
+      "end": "2026-10-07T18:38:32.462052892Z",
+      "check": {
+        "name": "business-rules",
+        "status": "pass",
+        "summary": "3576 documents and 14074 canary writes; every business rule holds",
+        "metrics": {
+          "canary_writes": 14074,
+          "documents": 3576,
+          "rule_violations": 0
+        }
+      }
+    },
+    {
+      "id": "attachments",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:38:32.462461192Z",
+      "end": "2026-10-07T18:38:34.22925318Z",
+      "check": {
+        "name": "db-object-consistency",
+        "status": "pass",
+        "summary": "all 3576 documents have their attachment in obj-a; 3 orphan object(s)",
+        "metrics": {
+          "documents": 3576,
+          "missing": 0,
+          "objects": 3579,
+          "orphans": 3
+        },
+        "details": [
+          "orphan objects: [documents/59d5db9b-766b-48ff-bac7-f1a118670355 documents/abf94494-e359-41e0-9dd7-da29955fd7fc documents/16073691-39c0-4901-ba3f-76bd5f792ca8]"
+        ]
+      }
+    },
+    {
+      "id": "payment-callback",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:38:34.229709553Z",
+      "end": "2026-10-07T18:38:35.255666282Z",
+      "check": {
+        "name": "webhook-roundtrip",
+        "status": "pass",
+        "summary": "document f134cb6b-2f79-4ae8-a0f9-addef5e2c1ba marked paid by the provider's callback after 1.01s",
+        "metrics": {
+          "callback_seconds": 1.005932158
+        }
+      }
+    },
+    {
+      "id": "replica-healthy",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T18:38:35.256107197Z",
+      "end": "2026-10-07T18:38:35.491926344Z",
+      "check": {
+        "name": "replication",
+        "status": "pass",
+        "summary": "db-b streams from db-a, replay lag 5ms",
+        "metrics": {
+          "replay_lag_seconds": 0.005025
+        }
+      }
+    }
+  ],
+  "cleanup": null,
+  "availability": {
+    "probes": 395,
+    "failed": 10
+  }
+}

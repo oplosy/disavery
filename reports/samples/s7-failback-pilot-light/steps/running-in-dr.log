@@ -1,0 +1,5 @@
+# step running-in-dr (check) in phase preflight
+# start 2026-10-07T18:43:40.354525272Z
+# attempt 1
+pass: site b active, no standby
+# end 2026-10-07T18:43:40.359913199Z ok

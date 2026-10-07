@@ -1,0 +1,5 @@
+# step stop-app-b (ssh) in phase recover
+# start 2026-10-07T18:36:35.856343356Z
+# attempt 1
+Removed "/etc/systemd/system/multi-user.target.wants/docsvc.service".
+# end 2026-10-07T18:36:36.147319512Z ok

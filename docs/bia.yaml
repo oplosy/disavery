@@ -8,10 +8,12 @@ tiers:
     rpo: 60s
     rto: 15m
     mechanism: pgBackRest async WAL archive (archive_timeout 30s); site-b built from scratch
+    cost: { always_on_nodes: 0, monthly_usd: 0 }
   warm-standby:
     rpo: 5s
     rto: 2m
     mechanism: async streaming replica; site-b always running
+    cost: { always_on_nodes: 3, monthly_usd: 72 }  # 3 VMs at about $24/month, see bia.md
 
 # S6, the random restore test: restore plus verification must finish within
 # max_duration; pitr_tolerance is the window around the PITR target in which
@@ -23,5 +25,5 @@ restore_test:
 # Preflight refuses to start a drill unless the environment is healthy.
 preflight:
   max_backup_age: 2h       # incremental backups run hourly
-  max_archive_age: 90s     # archive_timeout is 30s and the canary writes every second
+  max_archive_age: 45s     # archive_timeout is 30s and the canary writes every second
   max_canary_silence: 10s

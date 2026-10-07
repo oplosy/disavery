@@ -1,0 +1,8 @@
+# step downtime (check) in phase verify
+# start 2026-10-07T18:38:31.876816511Z
+# attempt 1
+pass: longest outage 5.001s (target 2m0s)
+  metric probes = 387
+  metric failed_probes = 10
+  metric downtime_seconds = 5.000737395
+# end 2026-10-07T18:38:31.87919767Z ok

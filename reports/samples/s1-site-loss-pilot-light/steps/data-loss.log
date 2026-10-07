@@ -1,0 +1,10 @@
+# step data-loss (check) in phase verify
+# start 2026-10-07T18:43:24.607052261Z
+# attempt 1
+pass: actual RPO 10.356s (target 1m0s); 10 of 837 acknowledged writes lost
+  lost writes (seq): [1791397673979 1791397673980 1791397673981 1791397673982 1791397673983 1791397673984 1791397673985 1791397673986 1791397673987 1791397673988]
+  metric lost = 10
+  metric anomalies = 0
+  metric acknowledged = 837
+  metric rpo_seconds = 10.355796376
+# end 2026-10-07T18:43:24.639811229Z ok

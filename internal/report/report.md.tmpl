@@ -1,0 +1,100 @@
+# Drill report: {{.Scenario}}
+{{with .Description}}
+{{.}}
+{{end}}
+| Result | Tier | Environment | Started (UTC) | Duration | Seed |
+|---|---|---|---|---|---|
+| **{{.Result}}** | {{dash .Tier}} | {{.Env}} | {{stamp .StartedAt}} | {{dur .Duration}} | {{.Seed}} |
+
+Run `{{.RunID}}`{{with .IncidentAt}} · incident at {{stamp .}} UTC{{end}}
+{{- with .Notes}}
+
+## Notes
+{{range .}}
+- {{.}}
+{{- end}}
+{{- end}}
+
+## Targets
+{{if .Measurements}}
+| Measure | Target | Actual | Met |
+|---|---|---|---|
+{{- range .Measurements}}
+| {{.Name}} | {{secs .TargetSeconds}} | {{secs .ActualSeconds}} | {{yesno .Met}} |
+{{- end}}
+{{else}}
+No measurements: the drill did not get far enough to measure anything.
+{{end}}
+## Recovery phases
+{{if .Phases}}
+| Phase | Start (UTC) | Duration |
+|---|---|---|
+{{- range .Phases}}
+| {{.Name}} | {{clock .Start}} | {{since .Start .End}} |
+{{- end}}
+{{else}}
+No phase ran.
+{{end}}
+## Verification
+{{$checks := .CheckSteps}}{{if $checks}}
+| Step | Check | Status | Summary |
+|---|---|---|---|
+{{- range $checks}}
+| `{{.ID}}` | {{.Check.Name}} | {{.Check.Status}} | {{cell .Check.Summary}} |
+{{- end}}
+{{range $checks}}{{if .Check.Details}}
+`{{.ID}}`:
+{{range .Check.Details}}
+- {{.}}
+{{- end}}
+{{end}}{{end}}{{else}}
+No check ran.
+{{end}}
+{{- with .Availability}}
+## Production availability during the drill
+
+{{.Probes}} probes, {{.Failed}} failed ({{pct .}} successful).
+{{end}}
+## Preflight
+{{if .Preflight}}
+| Check | Status | Detail |
+|---|---|---|
+{{- range .Preflight}}
+| {{.Name}} | {{.Status}} | {{cell .Detail}} |
+{{- end}}
+{{else}}
+Preflight did not run.
+{{end}}
+{{- $decisions := .DecisionSteps}}{{if $decisions}}
+## Decisions
+
+| Step | Prompt | Answer | At (UTC) |
+|---|---|---|---|
+{{- range $decisions}}
+| `{{.ID}}` | {{cell .Decision.Prompt}} | {{.Decision.Answer}}{{if .Decision.Auto}} (automatic){{end}} | {{clock .Decision.At}} |
+{{- end}}
+{{end}}
+{{- $sections := .Gantt}}{{if $sections}}
+## Timeline
+
+```mermaid
+gantt
+    dateFormat YYYY-MM-DD HH:mm:ss
+    axisFormat %H:%M:%S
+{{- range $sections}}
+    section {{.Name}}
+{{- range .Steps}}
+    {{.ID}} :{{ganttTag .Status}}, {{stamp .Start}}, {{stamp .End}}
+{{- end}}
+{{- end}}
+```
+{{end}}
+## Steps
+
+| Phase | Step | Kind | Status | Attempts | Duration | Error |
+|---|---|---|---|---|---|---|
+{{- range .AllSteps}}
+| {{.Phase}} | `{{.ID}}` | {{.Kind}} | {{.Status}} | {{.Attempts}} | {{since .Start .End}} | {{cell (dash .Error)}} |
+{{- end}}
+
+Logs: `steps/<step>.log` next to this report.

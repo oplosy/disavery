@@ -1,0 +1,78 @@
+- name: Install pgBackRest
+  ansible.builtin.apt:
+    name: pgbackrest
+
+- name: Remove the legacy configuration file
+  ansible.builtin.file:
+    path: /etc/pgbackrest.conf
+    state: absent
+
+- name: Create pgBackRest directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+  loop:
+    - /etc/pgbackrest
+    - "{{ pgbackrest_repo1_path }}"
+    - /var/spool/pgbackrest
+    - /var/log/pgbackrest
+
+- name: Configure pgBackRest
+  ansible.builtin.template:
+    src: pgbackrest.conf.j2
+    dest: /etc/pgbackrest/pgbackrest.conf
+    owner: postgres
+    group: postgres
+    mode: "0600"
+
+- name: Create the stanza (idempotent)
+  ansible.builtin.command: pgbackrest --stanza={{ pgbackrest_stanza }} stanza-create
+  become: true
+  become_user: postgres
+  changed_when: false
+
+- name: Check archiving and both repositories
+  ansible.builtin.command: pgbackrest --stanza={{ pgbackrest_stanza }} check
+  become: true
+  become_user: postgres
+  changed_when: false
+
+- name: Read the backup inventory
+  ansible.builtin.command: pgbackrest --stanza={{ pgbackrest_stanza }} info --output=json
+  become: true
+  become_user: postgres
+  register: pgbackrest_info
+  changed_when: false
+
+- name: Take an initial full backup in each repository
+  ansible.builtin.command: pgbackrest --stanza={{ pgbackrest_stanza }} --repo={{ item }} --type=full backup
+  become: true
+  become_user: postgres
+  loop: [1, 2]
+  when: >-
+    (pgbackrest_info.stdout | from_json)[0].backup
+    | selectattr('database.repo-key', 'equalto', item) | list | length == 0
+  changed_when: true
+
+- name: Install backup units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - pgbackrest-backup@.service
+    - pgbackrest-full.timer
+    - pgbackrest-incr.timer
+
+- name: Enable backup timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+  loop:
+    - pgbackrest-full.timer
+    - pgbackrest-incr.timer

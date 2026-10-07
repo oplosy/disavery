@@ -31,3 +31,9 @@
   roles:
     - role: minio
       minio_profile: site
+
+- name: Database
+  hosts: "db:&site_{{ target_site | default('a') }}"
+  roles:
+    - postgres
+    - pgbackrest

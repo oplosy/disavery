@@ -1,0 +1,7 @@
+pgbackrest_repo1_path: /var/lib/pgbackrest
+pgbackrest_repo1_retention_full: 7
+pgbackrest_repo2_bucket: pgbackrest
+pgbackrest_repo2_endpoint: vault
+pgbackrest_repo2_retention_full: 14
+pgbackrest_full_schedule: "*-*-* 01:00:00"
+pgbackrest_incr_schedule: hourly

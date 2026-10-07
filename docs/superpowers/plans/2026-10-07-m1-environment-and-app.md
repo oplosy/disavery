@@ -3866,6 +3866,13 @@ archive_timeout = {{ pg_archive_timeout }}
     name: postgresql-common
     update_cache: "{{ pgdg_repo.changed }}"
 
+# createcluster.conf includes this directory, but the package does not create it.
+- name: Create the createcluster.d directory
+  ansible.builtin.file:
+    path: /etc/postgresql-common/createcluster.d
+    state: directory
+    mode: "0755"
+
 - name: Create new clusters with data checksums
   ansible.builtin.copy:
     content: "initdb_options = '--data-checksums'\n"
@@ -4124,7 +4131,7 @@ Append to `infra/ansible/playbooks/site.yml`:
 Run: `make configure`
 Expected: `failed=0`; `db-a` shows the two "initial full backup" items as changed.
 
-If the repo2 backup or `check` fails with an S3 error mentioning `Content-MD5` / `MissingContentMD5` / `InvalidRequest` (MinIO rejecting writes to a default-retention bucket without an MD5 header), apply this fallback and re-run `make configure`:
+(Not needed with the source-built MinIO: both repos accepted the backup on the first run, 2026-10-07.) If the repo2 backup or `check` fails with an S3 error mentioning `Content-MD5` / `MissingContentMD5` / `InvalidRequest` (MinIO rejecting writes to a default-retention bucket without an MD5 header), apply this fallback and re-run `make configure`:
 
 1. In `infra/ansible/roles/minio/tasks/vault.yml`, create `pgbackrest` with versioning but **without** `--with-lock`, and keep `attachments` locked:
 ```yaml

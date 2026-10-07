@@ -1,0 +1,95 @@
+- name: Add the PGDG signing key
+  ansible.builtin.get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /usr/share/keyrings/pgdg.asc
+    mode: "0644"
+
+- name: Add the PGDG repository
+  ansible.builtin.copy:
+    content: "deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main\n"
+    dest: /etc/apt/sources.list.d/pgdg.list
+    mode: "0644"
+  register: pgdg_repo
+
+- name: Install postgresql-common
+  ansible.builtin.apt:
+    name: postgresql-common
+    update_cache: "{{ pgdg_repo.changed }}"
+
+# createcluster.conf includes this directory, but the package does not create it.
+- name: Create the createcluster.d directory
+  ansible.builtin.file:
+    path: /etc/postgresql-common/createcluster.d
+    state: directory
+    mode: "0755"
+
+- name: Create new clusters with data checksums
+  ansible.builtin.copy:
+    content: "initdb_options = '--data-checksums'\n"
+    dest: /etc/postgresql-common/createcluster.d/disavery.conf
+    mode: "0644"
+
+- name: Install PostgreSQL
+  ansible.builtin.apt:
+    name:
+      - "postgresql-{{ pg_version }}"
+      - "postgresql-client-{{ pg_version }}"
+      - python3-psycopg2
+
+- name: Configure PostgreSQL
+  ansible.builtin.template:
+    src: disavery.conf.j2
+    dest: "{{ pg_conf_dir }}/conf.d/disavery.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart PostgreSQL
+
+- name: Allow application and replication connections
+  ansible.builtin.blockinfile:
+    path: "{{ pg_conf_dir }}/pg_hba.conf"
+    marker: "# {mark} disavery"
+    block: |
+      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ wan_subnet }}  scram-sha-256
+      host  replication            replicator               {{ wan_subnet }}  scram-sha-256
+  notify: Reload PostgreSQL
+
+- name: Start PostgreSQL
+  ansible.builtin.systemd_service:
+    name: "{{ pg_service }}"
+    state: started
+    enabled: true
+
+- name: Apply PostgreSQL changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Create the application role
+  community.postgresql.postgresql_user:
+    name: "{{ postgres_app_user }}"
+    password: "{{ secrets.postgres.app_password }}"
+  become: true
+  become_user: postgres
+  no_log: true
+
+- name: Create the application database
+  community.postgresql.postgresql_db:
+    name: "{{ postgres_app_db }}"
+    owner: "{{ postgres_app_user }}"
+  become: true
+  become_user: postgres
+
+- name: Create the replication role
+  community.postgresql.postgresql_user:
+    name: replicator
+    password: "{{ secrets.postgres.replication_password }}"
+    role_attr_flags: LOGIN,REPLICATION
+  become: true
+  become_user: postgres
+  no_log: true
+
+- name: Enable amcheck for integrity verification
+  community.postgresql.postgresql_ext:
+    name: amcheck
+    db: "{{ postgres_app_db }}"
+  become: true
+  become_user: postgres

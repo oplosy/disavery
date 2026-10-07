@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -186,4 +188,57 @@ func (c checkRunner) Run(ctx context.Context, s executor.Step, log io.Writer) (e
 		return out, fmt.Errorf("check failed: %s", res.Summary)
 	}
 	return out, nil
+}
+
+// waitAlertRunner waits until Alertmanager reports the named alert as active.
+type waitAlertRunner struct {
+	URL    string // Alertmanager base URL
+	Client *http.Client
+}
+
+func (r waitAlertRunner) Run(ctx context.Context, s executor.Step, log io.Writer) (executor.Output, error) {
+	for {
+		active, err := activeAlerts(ctx, r.Client, r.URL)
+		switch {
+		case err != nil:
+			fmt.Fprintf(log, "alertmanager: %v\n", err)
+		case slices.Contains(active, s.WaitAlert):
+			fmt.Fprintf(log, "%s is firing\n", s.WaitAlert)
+			return executor.Output{}, nil
+		}
+		select {
+		case <-ctx.Done():
+			return executor.Output{}, fmt.Errorf("%s did not fire: %w", s.WaitAlert, ctx.Err())
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+// activeAlerts returns the names of active (not silenced or inhibited) alerts.
+func activeAlerts(ctx context.Context, c *http.Client, base string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		base+"/api/v2/alerts?active=true&silenced=false&inhibited=false", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	}
+	var alerts []struct {
+		Labels map[string]string `json:"labels"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&alerts); err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(alerts))
+	for _, a := range alerts {
+		names = append(names, a.Labels["alertname"])
+	}
+	slices.Sort(names)
+	return slices.Compact(names), nil
 }

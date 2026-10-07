@@ -115,8 +115,23 @@ func Run(ctx context.Context, o Options, l Lab) (*report.Report, string, error) 
 		return r, dir, report.AppendHistory(filepath.Join(o.ReportsDir, "history.jsonl"), r.HistoryEntry())
 	}
 
+	probes := &sampleLog{}
+	data := map[string]any{
+		"scenario": rb.ID, "tier": o.Tier, "env": o.Env, "run_id": runID,
+		"report_dir": dir, "seed": strconv.FormatInt(o.Seed, 10), "db_host": dbHost,
+	}
+	for k, v := range rb.Vars {
+		data[k] = v
+	}
+	runners := maps.Clone(l.Runners(o.Interactive && !o.CI))
+	runners[runbook.KindCheck] = checkRunner{
+		Registry: l.Checks(RunContext{Targets: targets, Samples: probes.snapshot}),
+		Start:    start, Now: o.Now,
+	}
+	logs := func(id string) (io.WriteCloser, error) { return os.Create(filepath.Join(dir, "steps", id+".log")) }
+
 	fmt.Fprintf(o.Out, "drill %s (seed %d)\n\npreflight\n", runID, o.Seed)
-	r.Preflight = l.Preflight(ctx)
+	r.Preflight = append(l.Preflight(ctx), runbookPreflight(ctx, rb, data, runners, logs, o.Now)...)
 	var failedPreflight []string
 	for _, c := range r.Preflight {
 		fmt.Fprintf(o.Out, "  %-16s %-4s %s\n", c.Name, c.Status, c.Detail)
@@ -130,7 +145,6 @@ func Run(ctx context.Context, o Options, l Lab) (*report.Report, string, error) 
 		return finish()
 	}
 
-	probes := &sampleLog{}
 	stopProber, err := startProber(ctx, l, filepath.Join(dir, "prober.jsonl"), probes)
 	if err != nil {
 		return nil, "", err
@@ -138,24 +152,11 @@ func Run(ctx context.Context, o Options, l Lab) (*report.Report, string, error) 
 
 	runCtx, cancel := context.WithTimeoutCause(ctx, o.Timeout, fmt.Errorf("global timeout of %s reached", o.Timeout))
 	defer cancel()
-	data := map[string]any{
-		"scenario": rb.ID, "tier": o.Tier, "env": o.Env, "run_id": runID,
-		"report_dir": dir, "seed": strconv.FormatInt(o.Seed, 10), "db_host": dbHost,
-	}
-	for k, v := range rb.Vars {
-		data[k] = v
-	}
-	runners := maps.Clone(l.Runners(o.Interactive && !o.CI))
-	runners[runbook.KindCheck] = checkRunner{
-		Registry: l.Checks(RunContext{Targets: targets, Samples: probes.snapshot}),
-		Start:    start, Now: o.Now,
-	}
-
 	fmt.Fprintf(o.Out, "\nsteps\n")
 	res := executor.Execute(runCtx, rb, executor.Options{
 		Data:    data,
 		Runners: runners,
-		Logs:    func(id string) (io.WriteCloser, error) { return os.Create(filepath.Join(dir, "steps", id+".log")) },
+		Logs:    logs,
 		Now:     o.Now,
 		Progress: func(s executor.StepRecord) {
 			line := fmt.Sprintf("  %-8s %-24s %-7s %s", s.Phase, s.ID, s.Status, report.FormatDuration(s.End.Sub(s.Start)))
@@ -318,4 +319,32 @@ func startProber(ctx context.Context, l Lab, path string, log *sampleLog) (func(
 		<-done
 		f.Close()
 	}, nil
+}
+
+// runbookPreflight runs the runbook's own preflight checks (e.g. the expected
+// topology or a healthy replica) through the executor, without cleanup.
+func runbookPreflight(ctx context.Context, rb *runbook.Runbook, data map[string]any, runners map[string]executor.Runner,
+	logs func(string) (io.WriteCloser, error), now func() time.Time) []report.Check {
+	if len(rb.Preflight) == 0 {
+		return nil
+	}
+	pre := &runbook.Runbook{Phases: []runbook.Phase{{Name: "preflight", Steps: rb.Preflight}}}
+	res := executor.Execute(ctx, pre, executor.Options{Data: data, Runners: runners, Logs: logs, Now: now})
+	out := make([]report.Check, 0, len(res.Steps))
+	for _, s := range res.Steps {
+		c := report.Check{Name: s.ID, Status: "pass"}
+		switch {
+		case s.Status == executor.Skipped:
+			c.Detail = "skipped (condition false)"
+		case s.Check != nil:
+			c.Detail = s.Check.Summary
+			if s.Status != executor.OK {
+				c.Status = "fail"
+			}
+		default:
+			c.Status, c.Detail = "fail", s.Error
+		}
+		out = append(out, c)
+	}
+	return out
 }

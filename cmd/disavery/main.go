@@ -33,8 +33,11 @@ commands:
   runbook lint [dir]                       validate runbooks
   report <dir>                             re-render report.md from report.json
   report trend                             summarise reports/history.jsonl
+  report tiers                             compare DR tiers (site loss, S1): measured vs. target, cost
   verify                                   verify production now
-  env reset                                return the lab to its baseline
+  env reset [--tier T]                     return the lab to a tier's baseline topology
+  env set key=value...                     change the topology (active_site, standby_site, site_b_enabled, ...)
+  attachments copy --from S --to S         copy current attachments between stores (vault, obj-<site>)
   canary run                               write canary records (long-running service)
   restore-point [--repo 2] [--seed N]      choose a random backup set and PITR target (JSON)
 
@@ -94,7 +97,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return exitError
 	}
 	cmd := args[0]
-	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || (cmd == "report" && args[1] == "trend")) {
+	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || cmd == "attachments" || (cmd == "report" && (args[1] == "trend" || args[1] == "tiers"))) {
 		cmd += " " + args[1]
 		args = args[1:]
 	}
@@ -252,6 +255,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 
 	case "env reset":
 		env := fs.String("env", "drill", "environment; must match the Terraform workspace and node labels")
+		tier := fs.String("tier", "", "DR tier whose baseline topology to apply (default: keep the current topology)")
 		if err := fs.Parse(args[1:]); err != nil {
 			return exitError
 		}
@@ -259,7 +263,73 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		if err != nil {
 			return fail(err)
 		}
-		if err := p.lab(b, *env, nil, stdout).Reset(ctx, *env, stdout); err != nil {
+		if err := p.lab(b, *env, nil, stdout).Reset(ctx, *env, *tier, stdout); err != nil {
+			return fail(err)
+		}
+		return 0
+
+	case "env set":
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		e := lab.Default(p.root)
+		top, err := lab.ReadTopology(e.TopologyPath)
+		if err != nil {
+			return fail(err)
+		}
+		for _, kv := range fs.Args() {
+			k, v, ok := strings.Cut(kv, "=")
+			if !ok {
+				return fail(fmt.Errorf("expected key=value, got %q", kv))
+			}
+			if err := top.Set(k, v); err != nil {
+				return fail(err)
+			}
+		}
+		if err := lab.WriteTopology(e.TopologyPath, top); err != nil {
+			return fail(err)
+		}
+		fmt.Fprintf(stdout, "active_site=%s standby_site=%s site_a_enabled=%t site_b_enabled=%t\n",
+			top.ActiveSite, top.StandbySite, top.SiteAEnabled, top.SiteBEnabled)
+		return 0
+
+	case "report tiers":
+		history := fs.String("history", "", "history file (default <reports>/history.jsonl)")
+		scenario := fs.String("scenario", "s1-site-loss", "scenario whose runs are compared")
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		path := *history
+		if path == "" {
+			path = filepath.Join(p.join(p.reports), "history.jsonl")
+		}
+		b, err := bia.Load(p.join(p.bia))
+		if err != nil {
+			return fail(err)
+		}
+		entries, err := report.ReadHistory(path)
+		if err != nil {
+			return fail(err)
+		}
+		fmt.Fprint(stdout, report.RenderTierComparison(report.CompareTiers(entries, *scenario, tierSpecs(b))))
+		return 0
+
+	case "attachments copy":
+		from := fs.String("from", "vault", "source store: vault or obj-<site>")
+		to := fs.String("to", "", "target store: obj-<site>")
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		if *to == "" {
+			return fail(fmt.Errorf("--to is required"))
+		}
+		b, err := bia.Load(p.join(p.bia))
+		if err != nil {
+			return fail(err)
+		}
+		st, err := p.lab(b, "drill", nil, stdout).CopyAttachments(ctx, *from, *to)
+		fmt.Fprintf(stdout, "copied %d, already present %d\n", st.Copied, st.Skipped)
+		if err != nil {
 			return fail(err)
 		}
 		return 0
@@ -355,3 +425,16 @@ func isTerminal(r io.Reader) bool {
 }
 
 func indent(s string) string { return "  " + strings.ReplaceAll(s, "\n", "\n  ") }
+
+// tierSpecs turns the BIA tiers into the report's comparison input.
+func tierSpecs(b *bia.BIA) []report.TierSpec {
+	var out []report.TierSpec
+	for _, name := range b.TierNames() {
+		t := b.Tiers[name]
+		out = append(out, report.TierSpec{
+			Name: name, TargetRPO: t.RPO.D(), TargetRTO: t.RTO.D(),
+			AlwaysOnNodes: t.Cost.AlwaysOnNodes, MonthlyUSD: t.Cost.MonthlyUSD,
+		})
+	}
+	return out
+}

@@ -45,12 +45,14 @@
     mode: "0644"
   notify: Restart PostgreSQL
 
+# The app reaches its own site's database over the zone network (Docker DNS
+# resolves db-<site> to the zone address); replication crosses sites over the WAN.
 - name: Allow application and replication connections
   ansible.builtin.blockinfile:
     path: "{{ postgres_conf_dir }}/pg_hba.conf"
     marker: "# {mark} disavery"
     block: |
-      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ wan_subnet }}  scram-sha-256
+      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ zone_subnet }}  scram-sha-256
       host  replication            replicator               {{ wan_subnet }}  scram-sha-256
   notify: Reload PostgreSQL
 

@@ -12,7 +12,11 @@ resource "local_file" "inventory" {
         },
         {
           for role in keys(local.site_roles) : role => {
-            hosts = { for s in local.enabled_sites : "${role}-${s}" => { wan_ip = local.ip["${role}-${s}"], site = s } }
+            hosts = { for s in local.enabled_sites : "${role}-${s}" => {
+              wan_ip      = local.ip["${role}-${s}"]
+              site        = s
+              zone_subnet = local.site_cfg[s].subnet
+            } }
           }
         },
         {

@@ -3133,7 +3133,11 @@ resource "local_file" "inventory" {
         },
         {
           for role in keys(local.site_roles) : role => {
-            hosts = { for s in local.enabled_sites : "${role}-${s}" => { wan_ip = local.ip["${role}-${s}"], site = s } }
+            hosts = { for s in local.enabled_sites : "${role}-${s}" => {
+              wan_ip      = local.ip["${role}-${s}"]
+              site        = s
+              zone_subnet = local.site_cfg[s].subnet
+            } }
           }
         },
         {
@@ -3805,7 +3809,7 @@ git commit -m "feat: add MinIO role with immutable vault and replication"
 - Modify: `infra/ansible/playbooks/site.yml`
 
 **Interfaces:**
-- Consumes: `secrets.postgres.*`, `secrets.minio.vault_writer_*`, `secrets.pgbackrest.repo2_cipher_pass`; vault buckets from Task 12; group vars `pg_version`, `pgbackrest_stanza`, `wan_subnet`, `disavery_ca_path`.
+- Consumes: `secrets.postgres.*`, `secrets.minio.vault_writer_*`, `secrets.pgbackrest.repo2_cipher_pass`; vault buckets from Task 12; group vars `pg_version`, `pgbackrest_stanza`, `wan_subnet`, `disavery_ca_path`; host var `zone_subnet` (Terraform inventory).
 - Produces: on `db-<site>`: PostgreSQL 16 cluster `16/main` with data checksums, listening on all interfaces; database `docsvc` owned by role `docsvc`; role `replicator` (REPLICATION); extension `amcheck` in `docsvc`; WAL archiving through pgBackRest stanza `main` to repo1 (`/var/lib/pgbackrest`, posix) and repo2 (`s3://pgbackrest/repo` on the vault, encrypted); at least one full backup in each repo; systemd timers `pgbackrest-full.timer` (daily 01:00) and `pgbackrest-incr.timer` (hourly), each backing up both repos. Service name `postgresql@16-main` (plan 3 stops/promotes it).
 
 - [ ] **Step 1: Write the postgres role**
@@ -3895,12 +3899,14 @@ archive_timeout = {{ postgres_archive_timeout }}
     mode: "0644"
   notify: Restart PostgreSQL
 
+# The app reaches its own site's database over the zone network (Docker DNS
+# resolves db-<site> to the zone address); replication crosses sites over the WAN.
 - name: Allow application and replication connections
   ansible.builtin.blockinfile:
     path: "{{ postgres_conf_dir }}/pg_hba.conf"
     marker: "# {mark} disavery"
     block: |
-      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ wan_subnet }}  scram-sha-256
+      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ zone_subnet }}  scram-sha-256
       host  replication            replicator               {{ wan_subnet }}  scram-sha-256
   notify: Reload PostgreSQL
 

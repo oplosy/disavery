@@ -176,7 +176,7 @@ vars: { decision_delay: 30s }
 phases:
   - name: inject
     steps:
-      - { id: kill-site-a, run: "terraform -chdir=infra/terraform/envs/local destroy -target=module.site_a -auto-approve" }
+      - { id: kill-site-a, run: "docker kill app-a db-a obj-a" }   # machines crash, disks survive (pg_rewind failback)
   - name: detect
     steps:
       - { id: alert, wait_alert: PostgresPrimaryDown, timeout: 2m }

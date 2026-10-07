@@ -1,0 +1,11 @@
+# step restore-db-a (ssh) in phase recover
+# start 2026-10-07T18:43:53.963142548Z
+# attempt 1
+2026-10-07 18:43:54.236 P00   INFO: restore command begin 2.59.3: --delta --exec-id=92-c427edde --log-level-console=info --log-level-file=detail --pg1-path=/var/lib/postgresql/16/main --process-max=2 --recovery-option="primary_conninfo=host=db-b user=replicator application_name=db-a" --repo=2 --repo2-cipher-pass=<redacted> --repo2-cipher-type=aes-256-cbc --repo1-path=/var/lib/pgbackrest --repo2-path=/repo --repo2-s3-bucket=pgbackrest --repo2-s3-endpoint=vault --repo2-s3-key=<redacted> --repo2-s3-key-secret=<redacted> --repo2-s3-region=us-east-1 --repo2-s3-uri-style=path --repo2-storage-ca-file=/usr/local/share/ca-certificates/disavery-ca.crt --repo2-storage-port=9000 --repo2-type=s3 --spool-path=/var/spool/pgbackrest --stanza=main --type=standby
+2026-10-07 18:43:54.262 P00   INFO: repo2: restore backup set 20261007-184343F, recovery will start at 2026-10-07 18:43:43
+2026-10-07 18:43:54.277 P00   INFO: remove invalid files/links/paths from '/var/lib/postgresql/16/main'
+2026-10-07 18:43:55.048 P00   INFO: write updated /var/lib/postgresql/16/main/postgresql.auto.conf
+2026-10-07 18:43:55.521 P00   INFO: restore global/pg_control (performed last to ensure aborted restores cannot be started)
+2026-10-07 18:43:55.536 P00   INFO: restore size = 31.4MB, file total = 1275
+2026-10-07 18:43:55.536 P00   INFO: restore command end: completed successfully (1303ms)
+# end 2026-10-07T18:43:55.540081184Z ok

@@ -1,0 +1,76 @@
+- name: Install PostgreSQL
+  ansible.builtin.include_role:
+    name: postgres
+    tasks_from: install
+    public: true
+
+# Same configuration as the primary (including archive_mode = on, which only
+# takes effect after promotion), so a promoted standby archives at once.
+- name: Configure PostgreSQL files
+  ansible.builtin.include_role:
+    name: postgres
+    tasks_from: config
+
+- name: Install and configure pgBackRest
+  ansible.builtin.include_role:
+    name: pgbackrest
+    tasks_from: config
+
+- name: Fetch WAL from the repositories when streaming falls behind
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (role replica).
+      restore_command = 'pgbackrest --stanza={{ pgbackrest_stanza }} archive-get %f "%p"'
+    dest: "{{ postgres_conf_dir }}/conf.d/standby.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart PostgreSQL
+
+- name: Check whether this node is already a standby
+  ansible.builtin.stat:
+    path: "{{ replica_data_dir }}/standby.signal"
+  register: replica_signal
+
+- name: Build the standby from the primary
+  when: not replica_signal.stat.exists
+  block:
+    - name: Stop PostgreSQL
+      ansible.builtin.systemd_service:
+        name: "{{ postgres_service }}"
+        state: stopped
+
+    - name: Remove the initial cluster's data
+      ansible.builtin.file:
+        path: "{{ replica_data_dir }}"
+        state: absent
+
+    # -R writes standby.signal and primary_conninfo (application_name names
+    # the standby in pg_stat_replication); the password comes from .pgpass.
+    - name: Copy the primary with pg_basebackup
+      ansible.builtin.command: >-
+        /usr/lib/postgresql/{{ pg_version }}/bin/pg_basebackup
+        -D {{ replica_data_dir }} -X stream -R --checkpoint=fast
+        -d "host={{ replica_primary }} user=replicator application_name={{ inventory_hostname }}"
+      become: true
+      become_user: postgres
+      changed_when: true
+
+- name: Start PostgreSQL
+  ansible.builtin.systemd_service:
+    name: "{{ postgres_service }}"
+    state: started
+    enabled: true
+
+- name: Apply PostgreSQL changes now
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait until the standby streams from the primary
+  ansible.builtin.command: psql -XAtc "SELECT status FROM pg_stat_wal_receiver"
+  become: true
+  become_user: postgres
+  register: replica_receiver
+  until: replica_receiver.stdout == "streaming"
+  retries: 30
+  delay: 2
+  changed_when: false

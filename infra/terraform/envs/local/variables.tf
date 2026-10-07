@@ -49,3 +49,19 @@ variable "restore_enabled" {
   type        = bool
   default     = false
 }
+
+variable "standby_site" {
+  description = "Site that runs as a warm standby (\"\" for none). Set with `disavery env set`."
+  type        = string
+  default     = ""
+  validation {
+    condition     = contains(["", "a", "b"], var.standby_site) && var.standby_site != var.active_site
+    error_message = "standby_site must be \"\", \"a\" or \"b\" and differ from active_site."
+  }
+}
+
+variable "prometheus_host_port" {
+  description = "Host port published for the Prometheus UI."
+  type        = number
+  default     = 9090
+}

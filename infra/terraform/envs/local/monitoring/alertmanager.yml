@@ -1,0 +1,10 @@
+# Drills read alerts from the API (disavery wait_alert); nothing is paged.
+route:
+  receiver: drills
+  group_by: [alertname]
+  group_wait: 0s
+  group_interval: 10s
+  repeat_interval: 1h
+
+receivers:
+  - name: drills

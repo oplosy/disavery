@@ -1,0 +1,8 @@
+# step data-loss (check) in phase verify
+# start 2026-10-07T18:46:36.996499355Z
+# attempt 1
+pass: all 171 writes acknowledged since the drill started survived
+  metric lost = 0
+  metric anomalies = 0
+  metric acknowledged = 171
+# end 2026-10-07T18:46:37.023072437Z ok

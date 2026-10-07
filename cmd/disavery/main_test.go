@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -39,5 +41,19 @@ func TestRunbookLintRepository(t *testing.T) {
 	code, out, errOut := runCLI("runbook", "lint", "--root", "../..")
 	if code != 0 || !strings.Contains(out, "ok   ") {
 		t.Fatalf("exit %d\n%s%s", code, out, errOut)
+	}
+}
+
+func TestEnvSet(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "infra", "terraform", "envs", "local"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errOut := runCLI("env", "set", "--root", root, "site_b_enabled=true", "standby_site=b")
+	if code != 0 || !strings.Contains(out, "active_site=a standby_site=b site_a_enabled=true site_b_enabled=true") {
+		t.Fatalf("exit %d\n%s%s", code, out, errOut)
+	}
+	if code, _, errOut := runCLI("env", "set", "--root", root, "active_site=b"); code != 4 || !strings.Contains(errOut, "must differ") {
+		t.Fatalf("invalid topology accepted: %d %s", code, errOut)
 	}
 }

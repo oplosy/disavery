@@ -24,6 +24,7 @@ import (
 	"github.com/oplosy/disavery/internal/canary"
 	"github.com/oplosy/disavery/internal/executor"
 	"github.com/oplosy/disavery/internal/lab"
+	"github.com/oplosy/disavery/internal/objcopy"
 	"github.com/oplosy/disavery/internal/prober"
 	"github.com/oplosy/disavery/internal/report"
 	"github.com/oplosy/disavery/internal/restorepoint"
@@ -83,8 +84,8 @@ func (l *LabEnv) Safety(ctx context.Context, env string) error {
 	return nil
 }
 
-// Preflight implements Lab (spec §9). Alertmanager arrives in plan 3; until
-// then "no firing alerts" is not checked.
+// Preflight implements Lab (spec §9). Runbooks add their own preflight checks
+// (expected topology, replica health).
 func (l *LabEnv) Preflight(ctx context.Context) []report.Check {
 	pf := l.BIA.Preflight
 	checks := []struct {
@@ -97,6 +98,7 @@ func (l *LabEnv) Preflight(ctx context.Context) []report.Check {
 		{"canary-writing", func(context.Context) (string, error) { return l.canaryWriting(pf.MaxCanarySilence.D()) }},
 		{"vault-reachable", l.vaultReachable},
 		{"escrow-present", func(context.Context) (string, error) { return l.escrowPresent() }},
+		{"no-firing-alerts", l.noFiringAlerts},
 	}
 	out := make([]report.Check, 0, len(checks))
 	for _, c := range checks {
@@ -268,11 +270,12 @@ func (l *LabEnv) Runners(interactive bool) map[string]executor.Runner {
 		m.Lines = readLines(l.In)
 	}
 	return map[string]executor.Runner{
-		runbook.KindRun:      runRunner{Dir: l.Env.Root},
-		runbook.KindSSH:      sshRunner{SSH: l.Env.SSH},
-		runbook.KindWaitHTTP: waitHTTPRunner{Client: func(ctx context.Context) (*http.Client, error) { return l.Env.HTTPClient(ctx, 5*time.Second) }},
-		runbook.KindSleep:    sleepRunner{},
-		runbook.KindManual:   m,
+		runbook.KindRun:       runRunner{Dir: l.Env.Root},
+		runbook.KindSSH:       sshRunner{SSH: l.Env.SSH},
+		runbook.KindWaitHTTP:  waitHTTPRunner{Client: func(ctx context.Context) (*http.Client, error) { return l.Env.HTTPClient(ctx, 5*time.Second) }},
+		runbook.KindSleep:     sleepRunner{},
+		runbook.KindManual:    m,
+		runbook.KindWaitAlert: waitAlertRunner{URL: l.Env.Alertmanager, Client: &http.Client{Timeout: 5 * time.Second}},
 	}
 }
 
@@ -290,12 +293,17 @@ func (l *LabEnv) Checks(rc RunContext) verify.Registry {
 		"pitr":                  verify.PITR{SQL: sql, Journal: l.journal, Tolerance: l.BIA.RestoreTest.PITRTolerance.D()},
 		"canary":                verify.LiveRPO{Journal: l.journal, Survivors: l.survivors, Target: rc.Targets.RPO},
 		"prober":                verify.LiveRTO{Samples: samples, Target: rc.Targets.RTO, Streak: 5},
+		"replication":           verify.Replication{SQL: l.psql("postgres")},
+		"topology":              verify.Topology{Current: l.topology},
+		"store-sync":            verify.StoreSync{Stores: l.store},
+		"webhook-roundtrip": verify.WebhookRoundTrip{BaseURL: l.Env.PublicURL, Poll: 500 * time.Millisecond,
+			Client: func(ctx context.Context) (*http.Client, error) { return l.Env.HTTPClient(ctx, 10*time.Second) }},
 	}
 }
 
-// store opens an attachment store: "vault" with the production writer's
+// minioClient opens an attachment store: "vault" with the production writer's
 // (read-capable) credentials, or a site store such as "obj-a" as its root.
-func (l *LabEnv) store(ctx context.Context, name string) (verify.ObjectLister, error) {
+func (l *LabEnv) minioClient(ctx context.Context, name string) (*minio.Client, error) {
 	s, err := l.Env.Secrets(ctx)
 	if err != nil {
 		return nil, err
@@ -326,23 +334,38 @@ func (l *LabEnv) store(ctx context.Context, name string) (verify.ObjectLister, e
 			return nil, errors.New("tls.ca_crt holds no certificate")
 		}
 		tr := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}
-		client, err := minio.New(l.Env.VaultEndpoint, &minio.Options{Creds: c, Secure: true, Transport: tr})
-		if err != nil {
-			return nil, err
-		}
-		return verify.MinioLister{Client: client, Bucket: "attachments"}, nil
+		return minio.New(l.Env.VaultEndpoint, &minio.Options{Creds: c, Secure: true, Transport: tr})
 	case strings.HasPrefix(name, "obj-"):
 		c, err := creds("site_root_user", "site_root_password")
 		if err != nil {
 			return nil, err
 		}
-		client, err := minio.New(name+":9000", &minio.Options{Creds: c})
-		if err != nil {
-			return nil, err
-		}
-		return verify.MinioLister{Client: client, Bucket: "attachments"}, nil
+		return minio.New(name+":9000", &minio.Options{Creds: c})
 	}
 	return nil, fmt.Errorf("unknown attachment store %q (vault or obj-<site>)", name)
+}
+
+func (l *LabEnv) store(ctx context.Context, name string) (verify.ObjectLister, error) {
+	c, err := l.minioClient(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	return verify.MinioLister{Client: c, Bucket: "attachments"}, nil
+}
+
+// CopyAttachments copies the current attachments from one store to another
+// (vault or obj-<site>): filling a pilot-light site from the vault, or a
+// returning site from the DR site before a switchover.
+func (l *LabEnv) CopyAttachments(ctx context.Context, from, to string) (objcopy.Stats, error) {
+	src, err := l.minioClient(ctx, from)
+	if err != nil {
+		return objcopy.Stats{}, err
+	}
+	dst, err := l.minioClient(ctx, to)
+	if err != nil {
+		return objcopy.Stats{}, err
+	}
+	return objcopy.Copy(ctx, objcopy.Store{Client: src, Bucket: "attachments"}, objcopy.Store{Client: dst, Bucket: "attachments"}, "documents/", 8)
 }
 
 // survivors returns the canary writes from seq `from` on that production holds.
@@ -449,12 +472,31 @@ func (l *LabEnv) ProductionChecks(ctx context.Context) ([]verify.Result, error) 
 	return out, nil
 }
 
-// Reset returns the environment to its baseline: Terraform with default
-// variables (removing drill-only nodes such as the restore node), then the
-// site playbook. Both are idempotent.
-func (l *LabEnv) Reset(ctx context.Context, env string, out io.Writer) error {
+// Reset returns the environment to a tier's baseline (TierBaselines; "" keeps
+// the current one): it writes the topology, then runs Terraform (which also
+// removes drill-only nodes such as the restore node) and the site playbook.
+// It refuses while site-b serves, because only a failback (S7) may move the
+// data back.
+func (l *LabEnv) Reset(ctx context.Context, env, tier string, out io.Writer) error {
 	if err := l.Safety(ctx, env); err != nil {
 		return fmt.Errorf("safety lock: %w", err)
+	}
+	cur, err := lab.ReadTopology(l.Env.TopologyPath)
+	if err != nil {
+		return err
+	}
+	if cur.ActiveSite != "a" {
+		return fmt.Errorf("site %s is active; fail back first (runbook s7-failback)", cur.ActiveSite)
+	}
+	if tier != "" {
+		want, ok := TierBaselines[tier]
+		if !ok {
+			return fmt.Errorf("unknown tier %q", tier)
+		}
+		if err := lab.WriteTopology(l.Env.TopologyPath, want); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "topology: %+v\n", want)
 	}
 	for _, args := range [][]string{
 		{"terraform", "-chdir=" + l.Env.TerraformDir, "apply", "-input=false", "-auto-approve"},
@@ -468,4 +510,32 @@ func (l *LabEnv) Reset(ctx context.Context, env string, out io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// topology reads the intended topology (topology.auto.tfvars), the source
+// the inventory is generated from.
+func (l *LabEnv) topology() (string, string, error) {
+	t, err := lab.ReadTopology(l.Env.TopologyPath)
+	if err != nil {
+		return "", "", err
+	}
+	return t.ActiveSite, t.StandbySite, nil
+}
+
+func (l *LabEnv) noFiringAlerts(ctx context.Context) (string, error) {
+	active, err := activeAlerts(ctx, &http.Client{Timeout: 5 * time.Second}, l.Env.Alertmanager)
+	if err != nil {
+		return "", fmt.Errorf("alertmanager: %w", err)
+	}
+	if len(active) > 0 {
+		return "", fmt.Errorf("firing: %s", strings.Join(active, ", "))
+	}
+	return "Alertmanager reports no active alert", nil
+}
+
+// TierBaselines are the topologies each DR tier starts from: pilot light has
+// no site-b at all, warm standby a streaming replica in site-b.
+var TierBaselines = map[string]lab.Topology{
+	"pilot-light":  {ActiveSite: "a", SiteAEnabled: true},
+	"warm-standby": {ActiveSite: "a", StandbySite: "b", SiteAEnabled: true, SiteBEnabled: true},
 }

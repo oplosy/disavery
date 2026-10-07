@@ -1,0 +1,5 @@
+postgres_exporter_version: 0.20.1
+# From the release's sha256sums.txt; pinned so reruns need no network.
+postgres_exporter_sha256: 89d4f7e7920cad48fdc3133f789556ef5253c330a9f5fdace3bdb6344c0a8b5a
+postgres_exporter_release: "https://github.com/prometheus-community/postgres_exporter/releases/download/v{{ postgres_exporter_version }}"
+postgres_exporter_archive: "postgres_exporter-{{ postgres_exporter_version }}.linux-amd64"

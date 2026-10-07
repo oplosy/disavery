@@ -19,7 +19,10 @@ type Known struct {
 	Checks []string // registered verifiers
 }
 
-var namePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+var (
+	namePattern  = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	alertPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
 
 // Lint validates a runbook and returns every problem found.
 func Lint(rb *Runbook, k Known) error {
@@ -43,6 +46,13 @@ func Lint(rb *Runbook, k Known) error {
 			l.add("var %q: must match %s and not shadow a built-in variable", name, namePattern)
 		}
 		l.vars[name] = true
+	}
+
+	for _, s := range rb.Preflight {
+		if s.Kind() != KindCheck {
+			l.add("preflight step %q: must be a check", s.ID)
+		}
+		l.step(s, "preflight")
 	}
 
 	if len(rb.Phases) == 0 {
@@ -107,7 +117,9 @@ func (l *linter) step(s Step, where string) {
 			l.add("%s: wait_http status %d is not an HTTP status", at, s.WaitHTTP.Status)
 		}
 	case KindWaitAlert:
-		l.add("%s: wait_alert is not available yet (Alertmanager arrives in plan 3)", at)
+		if !alertPattern.MatchString(s.WaitAlert) {
+			l.add("%s: wait_alert %q is not an alert name", at, s.WaitAlert)
+		}
 	case KindManual:
 		if s.AutoAfter <= 0 {
 			l.add("%s: manual needs auto_after so unattended runs cannot hang", at)

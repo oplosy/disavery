@@ -1,0 +1,16 @@
+# step first-backup-on-b (ssh) in phase recover
+# start 2026-10-07T18:34:54.394906741Z
+# attempt 1
+2026-10-07 18:34:54.595 P00   INFO: backup command begin 2.59.3: --compress-type=zst --exec-id=7649-b0914bc1 --log-level-console=info --log-level-file=detail --pg1-path=/var/lib/postgresql/16/main --process-max=2 --repo=1 --repo2-cipher-pass=<redacted> --repo2-cipher-type=aes-256-cbc --repo1-path=/var/lib/pgbackrest --repo2-path=/repo --repo1-retention-full=7 --repo2-retention-full=14 --repo2-s3-bucket=pgbackrest --repo2-s3-endpoint=vault --repo2-s3-key=<redacted> --repo2-s3-key-secret=<redacted> --repo2-s3-region=us-east-1 --repo2-s3-uri-style=path --repo2-storage-ca-file=/usr/local/share/ca-certificates/disavery-ca.crt --repo2-storage-port=9000 --repo2-type=s3 --stanza=main --start-fast --type=full
+2026-10-07 18:34:54.602 P00   INFO: execute backup start: backup begins after the requested immediate checkpoint completes
+2026-10-07 18:34:54.788 P00   INFO: backup start archive = 000000100000000200000021, lsn = 2/21000028
+2026-10-07 18:34:54.788 P00   INFO: check archive for prior segment 000000100000000200000020
+2026-10-07 18:35:05.376 P00   INFO: execute backup stop and wait for all WAL segments to archive
+2026-10-07 18:35:05.417 P00   INFO: backup stop archive = 000000100000000200000021, lsn = 2/21030A80
+2026-10-07 18:35:05.446 P00   INFO: check archive for segment(s) 000000100000000200000021:000000100000000200000021
+2026-10-07 18:35:05.581 P00   INFO: new backup label = 20261007-183454F
+2026-10-07 18:35:05.851 P00   INFO: full backup size = 31.3MB, file total = 1275
+2026-10-07 18:35:05.851 P00   INFO: backup command end: completed successfully (11258ms)
+2026-10-07 18:35:05.851 P00   INFO: expire command begin 2.59.3: --exec-id=7649-b0914bc1 --log-level-console=info --log-level-file=detail --repo=1 --repo2-cipher-pass=<redacted> --repo2-cipher-type=aes-256-cbc --repo1-path=/var/lib/pgbackrest --repo2-path=/repo --repo1-retention-full=7 --repo2-retention-full=14 --repo2-s3-bucket=pgbackrest --repo2-s3-endpoint=vault --repo2-s3-key=<redacted> --repo2-s3-key-secret=<redacted> --repo2-s3-region=us-east-1 --repo2-s3-uri-style=path --repo2-storage-ca-file=/usr/local/share/ca-certificates/disavery-ca.crt --repo2-storage-port=9000 --repo2-type=s3 --stanza=main
+2026-10-07 18:35:05.851 P00   INFO: expire command end: completed successfully (0ms)
+# end 2026-10-07T18:35:05.854868296Z ok

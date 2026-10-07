@@ -1,0 +1,2 @@
+replica_primary: "db-{{ active_site }}"
+replica_data_dir: "/var/lib/postgresql/{{ pg_version }}/main"

@@ -1,0 +1,5 @@
+# step declare-disaster (manual) in phase decide
+# start 2026-10-07T18:34:00.591319026Z
+# attempt 1
+decision "Site a is down. Declare a disaster and fail over to site b?": continue (automatic: true)
+# end 2026-10-07T18:34:30.592125262Z ok

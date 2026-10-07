@@ -2,25 +2,9 @@
 - name: Install PostgreSQL packages
   ansible.builtin.import_tasks: install.yml
 
-- name: Configure PostgreSQL
-  ansible.builtin.template:
-    src: disavery.conf.j2
-    dest: "{{ postgres_conf_dir }}/conf.d/disavery.conf"
-    owner: postgres
-    group: postgres
-    mode: "0644"
-  notify: Restart PostgreSQL
-
-# The app reaches its own site's database over the zone network (Docker DNS
-# resolves db-<site> to the zone address); replication crosses sites over the WAN.
-- name: Allow application and replication connections
-  ansible.builtin.blockinfile:
-    path: "{{ postgres_conf_dir }}/pg_hba.conf"
-    marker: "# {mark} disavery"
-    block: |
-      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ zone_subnet }}  scram-sha-256
-      host  replication            replicator               {{ wan_subnet }}  scram-sha-256
-  notify: Reload PostgreSQL
+# Configuration files only; standby nodes reuse this (role replica).
+- name: Configure PostgreSQL files
+  ansible.builtin.import_tasks: config.yml
 
 - name: Start PostgreSQL
   ansible.builtin.systemd_service:
@@ -54,6 +38,33 @@
   become: true
   become_user: postgres
   no_log: true
+
+# pg_rewind (failback, S7) connects as replicator; these are the functions it
+# needs, so it does not need a superuser.
+- name: Allow the replication role to run pg_rewind
+  community.postgresql.postgresql_privs:
+    db: postgres
+    type: function
+    schema: pg_catalog
+    objs: "pg_ls_dir(text:boolean:boolean),pg_stat_file(text:boolean),pg_read_binary_file(text),pg_read_binary_file(text:bigint:bigint:boolean)"
+    privs: EXECUTE
+    roles: replicator
+  become: true
+  become_user: postgres
+
+- name: Create the monitoring role
+  community.postgresql.postgresql_user:
+    name: postgres_exporter
+    role_attr_flags: LOGIN
+  become: true
+  become_user: postgres
+
+- name: Grant pg_monitor to the monitoring role
+  community.postgresql.postgresql_membership:
+    groups: [pg_monitor]
+    target_roles: [postgres_exporter]
+  become: true
+  become_user: postgres
 
 - name: Enable amcheck for integrity verification
   community.postgresql.postgresql_ext:

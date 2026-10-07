@@ -1,0 +1,7 @@
+# step rewind-db-a (ssh) in phase recover
+# start 2026-10-07T18:35:20.537210066Z
+# attempt 1
+pg_rewind: connected to server
+pg_rewind: servers diverged at WAL location 2/20000A58 on timeline 15
+pg_rewind: no rewind required
+# end 2026-10-07T18:35:20.773549922Z ok

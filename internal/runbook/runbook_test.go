@@ -101,7 +101,8 @@ func TestLint(t *testing.T) {
 		{"bad template", `echo kill {{.tier}}`, `echo kill {{.tier}`, "run:"},
 		{"capture on check", "check: amcheck, with", "check: amcheck, capture: x, with", "capture is only valid with run or ssh"},
 		{"capture shadows var", "capture: point", "capture: tier", `capture "tier" must match`},
-		{"wait_alert not yet", `{ id: tidy, run: "true" }`, `{ id: tidy, wait_alert: PostgresPrimaryDown }`, "wait_alert is not available yet"},
+		{"bad alert name", `{ id: tidy, run: "true" }`, `{ id: tidy, wait_alert: "primary down" }`, "is not an alert name"},
+		{"preflight not a check", "phases:\n", "preflight:\n  - { id: pre, run: \"true\" }\nphases:\n", `preflight step "pre": must be a check`},
 		{"ssh without host", `ssh: { host: db-b, cmd: "pg_ctl promote" }`, `ssh: { cmd: "pg_ctl promote" }`, "ssh needs host and cmd"},
 		{"var shadows builtin", "vars: { delay: 30s }", "vars: { tier: x }", `var "tier"`},
 	}

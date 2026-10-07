@@ -1,0 +1,5 @@
+# step topology-pilot-light (check) in phase preflight
+# start 2026-10-07T18:39:32.610238773Z
+# attempt 1
+pass: site a active, no standby
+# end 2026-10-07T18:39:32.615717161Z ok

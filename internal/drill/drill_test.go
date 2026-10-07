@@ -207,3 +207,29 @@ func TestCancelledRunIsError(t *testing.T) {
 		t.Fatalf("result %s notes %v ran %v", r.Result, r.Notes, l.ran)
 	}
 }
+
+const withPreflight = `id: guarded
+preflight:
+  - { id: expected-topology, check: topology }
+phases:
+  - name: recover
+    steps:
+      - { id: work, run: "work" }
+`
+
+func TestRunbookPreflightFailureIsError(t *testing.T) {
+	o, _ := setup(t, "15m")
+	if err := os.WriteFile(filepath.Join(o.RunbookDir, "guarded.yaml"), []byte(withPreflight), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o.RunbookID = "guarded"
+	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"topology": verify.Fail}}
+	r, _, err := drill.Run(context.Background(), o, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := r.Preflight[len(r.Preflight)-1]
+	if r.Result != report.Error || last.Name != "expected-topology" || last.Status != "fail" || len(l.ran) != 0 {
+		t.Fatalf("result %s preflight %+v ran %v", r.Result, r.Preflight, l.ran)
+	}
+}

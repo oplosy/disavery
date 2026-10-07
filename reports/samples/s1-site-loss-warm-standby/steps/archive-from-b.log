@@ -1,0 +1,13 @@
+# step archive-from-b (ssh) in phase recover
+# start 2026-10-07T18:34:32.358211467Z
+# attempt 1
+2026-10-07 18:34:32.575 P00   INFO: stanza-create command begin 2.59.3: --exec-id=7569-e735ab58 --log-level-console=info --log-level-file=detail --pg1-path=/var/lib/postgresql/16/main --repo2-cipher-pass=<redacted> --repo2-cipher-type=aes-256-cbc --repo1-path=/var/lib/pgbackrest --repo2-path=/repo --repo2-s3-bucket=pgbackrest --repo2-s3-endpoint=vault --repo2-s3-key=<redacted> --repo2-s3-key-secret=<redacted> --repo2-s3-region=us-east-1 --repo2-s3-uri-style=path --repo2-storage-ca-file=/usr/local/share/ca-certificates/disavery-ca.crt --repo2-storage-port=9000 --repo2-type=s3 --stanza=main
+2026-10-07 18:34:32.584 P00  ERROR: [050]: unable to acquire lock on file '/tmp/pgbackrest/main-archive-1.lock': Resource temporarily unavailable
+                                    HINT: is another pgBackRest process running?
+2026-10-07 18:34:32.584 P00   INFO: stanza-create command end: aborted with exception [050]
+2026-10-07 18:34:34.597 P00   INFO: stanza-create command begin 2.59.3: --exec-id=7578-1bac3032 --log-level-console=info --log-level-file=detail --pg1-path=/var/lib/postgresql/16/main --repo2-cipher-pass=<redacted> --repo2-cipher-type=aes-256-cbc --repo1-path=/var/lib/pgbackrest --repo2-path=/repo --repo2-s3-bucket=pgbackrest --repo2-s3-endpoint=vault --repo2-s3-key=<redacted> --repo2-s3-key-secret=<redacted> --repo2-s3-region=us-east-1 --repo2-s3-uri-style=path --repo2-storage-ca-file=/usr/local/share/ca-certificates/disavery-ca.crt --repo2-storage-port=9000 --repo2-type=s3 --stanza=main
+2026-10-07 18:34:34.604 P00   INFO: stanza-create for stanza 'main' on repo1
+2026-10-07 18:34:34.654 P00   INFO: stanza-create for stanza 'main' on repo2
+2026-10-07 18:34:34.661 P00   INFO: stanza 'main' already exists on repo2 and is valid
+2026-10-07 18:34:34.661 P00   INFO: stanza-create command end: completed successfully (65ms)
+# end 2026-10-07T18:34:34.664462908Z ok

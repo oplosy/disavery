@@ -1,0 +1,40 @@
+# Points the third parties at the active site after `disavery env set
+# active_site=...` and the targeted Terraform apply (DNS, edge, inventory):
+# the payment provider's allowlist, the active store's replication and the
+# monitoring targets. Explicit runbook step, never implicit (spec success
+# criterion 3).
+- name: Prepare
+  hosts: "webhooks:active"
+  gather_facts: false
+  tasks:
+    - name: Wait for SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 60
+
+    - name: Load SOPS secrets
+      community.sops.load_vars:
+        file: "{{ secrets_file }}"
+        name: secrets
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+- name: Payment provider allowlist
+  hosts: webhooks
+  roles:
+    - webhookmock
+
+- name: Active site's attachments replicate to the vault
+  hosts: "obj:&active"
+  roles:
+    - role: minio
+      minio_profile: site
+      minio_replicate: true
+      minio_standby_store: "{{ ('obj-' + standby_site) if standby_site else '' }}"
+
+- name: Monitoring targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - monitoring_targets

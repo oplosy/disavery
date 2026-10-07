@@ -164,3 +164,65 @@ func RenderTrend(rows []TrendRow) string {
 	}
 	return b.String()
 }
+
+// TierSpec is what the BIA declares about a tier.
+type TierSpec struct {
+	Name                 string
+	TargetRPO, TargetRTO time.Duration
+	AlwaysOnNodes        int
+	MonthlyUSD           float64
+}
+
+// TierRow compares one tier's measured recoveries with its targets and cost.
+type TierRow struct {
+	TierSpec
+	Runs, Passed int
+	RPO, RTO     *MeasureStats // nil without measurements
+}
+
+// CompareTiers summarises the runs of scenario (normally s1-site-loss) per
+// tier: spec success criterion 5.
+func CompareTiers(entries []HistoryEntry, scenario string, tiers []TierSpec) []TierRow {
+	rows := make([]TierRow, 0, len(tiers))
+	for _, t := range tiers {
+		row := TierRow{TierSpec: t}
+		var mine []HistoryEntry
+		for _, e := range entries {
+			if e.Scenario == scenario && e.Tier == t.Name {
+				mine = append(mine, e)
+			}
+		}
+		for _, tr := range Trend(mine) {
+			row.Runs, row.Passed = tr.Runs, tr.Passed
+			for i := range tr.Measures {
+				switch tr.Measures[i].Name {
+				case "rpo":
+					row.RPO = &tr.Measures[i]
+				case "rto":
+					row.RTO = &tr.Measures[i]
+				}
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+// RenderTierComparison renders the comparison as a Markdown table.
+func RenderTierComparison(rows []TierRow) string {
+	stat := func(m *MeasureStats) string {
+		if m == nil {
+			return "—"
+		}
+		return fmt.Sprintf("%s (max %s)", FormatDuration(m.Median), FormatDuration(m.Max))
+	}
+	var b strings.Builder
+	b.WriteString("| Tier | Target RPO | Actual RPO, median | Target RTO | Actual RTO, median | Runs passed | Always-on DR nodes | Est. monthly cost |\n")
+	b.WriteString("|---|---|---|---|---|---|---|---|\n")
+	for _, r := range rows {
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %d/%d | %d | $%.0f |\n", r.Name,
+			FormatDuration(r.TargetRPO), stat(r.RPO), FormatDuration(r.TargetRTO), stat(r.RTO),
+			r.Passed, r.Runs, r.AlwaysOnNodes, r.MonthlyUSD)
+	}
+	return b.String()
+}

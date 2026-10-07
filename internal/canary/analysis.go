@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+// AnomalyHorizon is how far before the last surviving write LiveRPO looks for
+// lost older writes. Looking further would count losses of earlier incidents.
+const AnomalyHorizon = 2 * time.Minute
+
 // RPO compares the journal with the writes that survived an incident.
 type RPO struct {
 	Incident time.Time
@@ -16,10 +20,12 @@ type RPO struct {
 	// Value is Incident minus LastSurvivor's acknowledgement (the spec's
 	// actual RPO), or Incident minus the window start if nothing survived.
 	Value time.Duration
-	// Lost lists acknowledged writes that did not survive.
+	// Lost lists the acknowledged writes after the last survivor that did not
+	// survive: the data this incident lost.
 	Lost []int64
-	// Anomalies lists lost writes that are older than a surviving write: with
-	// ordered replication or WAL shipping this should never happen.
+	// Anomalies lists lost writes acknowledged shortly before the last
+	// survivor (within AnomalyHorizon): an older write lost while a newer one
+	// survived, which ordered replication or WAL shipping should never do.
 	Anomalies []int64
 }
 
@@ -27,32 +33,30 @@ type RPO struct {
 // of surviving sequence numbers.
 func LiveRPO(entries []Entry, since, incident, until time.Time, survived func(int64) bool) RPO {
 	r := RPO{Incident: incident}
-	var newestSurvivor int64
-	var lost []int64
+	var window []*Entry
 	for i := range entries {
 		e := &entries[i]
 		if e.Acked.Before(since) || e.Acked.After(until) {
 			continue
 		}
 		r.Considered++
-		if !survived(e.Seq) {
-			lost = append(lost, e.Seq)
-			continue
-		}
-		newestSurvivor = max(newestSurvivor, e.Seq)
-		if !e.Acked.After(incident) && (r.LastSurvivor == nil || e.Acked.After(r.LastSurvivor.Acked)) {
+		window = append(window, e)
+		if survived(e.Seq) && !e.Acked.After(incident) && (r.LastSurvivor == nil || e.Acked.After(r.LastSurvivor.Acked)) {
 			r.LastSurvivor = e
-		}
-	}
-	for _, seq := range lost {
-		r.Lost = append(r.Lost, seq)
-		if seq < newestSurvivor {
-			r.Anomalies = append(r.Anomalies, seq)
 		}
 	}
 	ref := since
 	if r.LastSurvivor != nil {
 		ref = r.LastSurvivor.Acked
+	}
+	for _, e := range window {
+		switch {
+		case survived(e.Seq):
+		case e.Acked.After(ref):
+			r.Lost = append(r.Lost, e.Seq)
+		case !e.Acked.Before(ref.Add(-AnomalyHorizon)):
+			r.Anomalies = append(r.Anomalies, e.Seq)
+		}
 	}
 	r.Value = max(0, incident.Sub(ref))
 	return r

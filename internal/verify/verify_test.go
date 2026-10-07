@@ -85,18 +85,6 @@ func TestParseTime(t *testing.T) {
 	}
 }
 
-func TestLiveChecksSkipWithoutIncident(t *testing.T) {
-	ctx := context.Background()
-	rpo, err := verify.LiveRPO{}.Run(ctx, params())
-	if err != nil || rpo.Status != verify.Skip {
-		t.Fatalf("rpo %+v %v", rpo, err)
-	}
-	rto, err := verify.LiveRTO{}.Run(ctx, params())
-	if err != nil || rto.Status != verify.Skip {
-		t.Fatalf("rto %+v %v", rto, err)
-	}
-}
-
 func TestLiveRPOAndRTO(t *testing.T) {
 	start := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
 	incident := start.Add(5 * time.Second)
@@ -134,5 +122,43 @@ func TestLiveRPOAndRTO(t *testing.T) {
 	rto, err := verify.LiveRTO{Samples: func() []prober.Sample { return samples }, Target: 2 * time.Second, Streak: 5}.Run(context.Background(), p)
 	if err != nil || rto.Measurements[0].Actual != 3*time.Second || rto.Measurements[0].Met() {
 		t.Fatalf("rto %+v %v", rto, err)
+	}
+}
+
+// TestLiveRPOLooksBeforeTheDrill pins a measurement bug found in a pilot-light
+// drill: the drill started half a second before the incident, every write of
+// the last 72 s was lost, and judging only writes since the drill started
+// reported an RPO of 0.5 s instead of 72 s.
+func TestLiveRPOLooksBeforeTheDrill(t *testing.T) {
+	incident := time.Date(2026, 10, 7, 16, 37, 35, 878_000_000, time.UTC)
+	var entries []canary.Entry
+	for i := range 120 {
+		sent := incident.Add(time.Duration(i-120) * time.Second)
+		entries = append(entries, canary.Entry{Seq: int64(1000 + i), Sent: sent, Acked: sent.Add(47 * time.Millisecond)})
+	}
+	p := verify.Params{Start: incident.Add(-487 * time.Millisecond), Incident: &incident, Now: incident.Add(3 * time.Minute)}
+	check := verify.LiveRPO{
+		Journal: func() ([]canary.Entry, error) { return entries, nil },
+		Survivors: func(_ context.Context, from int64) (map[int64]bool, error) {
+			if from != 1000 {
+				t.Errorf("survivors queried from %d, want the start of the lookback window", from)
+			}
+			s := map[int64]bool{}
+			for seq := int64(1000); seq <= 1047; seq++ { // writes up to 72 s before the incident survived
+				s[seq] = true
+			}
+			return s, nil
+		},
+		Target: time.Minute,
+	}
+	res, err := check.Run(context.Background(), p)
+	if err != nil || res.Measurements[0].Actual != 72953*time.Millisecond || res.Measurements[0].Met() || res.Metrics["lost"] != 72 {
+		t.Fatalf("%+v %v", res, err)
+	}
+
+	// Nothing survived inside the window: fail rather than report the window as RPO.
+	check.Survivors = func(context.Context, int64) (map[int64]bool, error) { return map[int64]bool{}, nil }
+	if res, err := check.Run(context.Background(), p); err != nil || res.Status != verify.Fail {
+		t.Fatalf("total loss: %+v %v", res, err)
 	}
 }

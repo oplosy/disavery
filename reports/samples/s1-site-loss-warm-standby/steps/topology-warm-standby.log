@@ -1,0 +1,5 @@
+# step topology-warm-standby (check) in phase preflight
+# start 2026-10-07T18:33:38.076343378Z
+# attempt 1
+pass: site a active, site b standby
+# end 2026-10-07T18:33:38.080537224Z ok

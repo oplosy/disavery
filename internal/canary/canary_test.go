@@ -191,3 +191,18 @@ func TestCoverageStart(t *testing.T) {
 		t.Fatal("want no coverage")
 	}
 }
+
+func TestLiveRPOIgnoresEarlierIncidents(t *testing.T) {
+	j := journal(600) // ten minutes of writes, one per second
+	// An earlier drill lost writes 100-130; writes 131-520 survived; this
+	// incident at 9:00 lost everything after write 520 (acked 8:39.1).
+	survived := func(s int64) bool { return (s < 100 || s > 130) && s <= 520 }
+	incident := t0.Add(9 * time.Minute)
+	r := canary.LiveRPO(j, t0, incident, t0.Add(10*time.Minute), survived)
+	if r.LastSurvivor.Seq != 520 || r.Value != incident.Sub(j[519].Acked) {
+		t.Fatalf("rpo %+v", r)
+	}
+	if len(r.Lost) != 80 || r.Lost[0] != 521 || len(r.Anomalies) != 0 {
+		t.Fatalf("lost %d (first %d), anomalies %v", len(r.Lost), r.Lost[0], r.Anomalies)
+	}
+}

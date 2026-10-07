@@ -3,3 +3,4 @@
     name: docsvc
     state: restarted
     daemon_reload: true
+  when: docsvc_running | bool

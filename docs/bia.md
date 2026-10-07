@@ -53,7 +53,7 @@ always means a failed recovery, not a broken lab.
 | Threshold | Value | Why |
 |---|---|---|
 | `preflight.max_backup_age` | 2 h | Incremental backups run hourly to both repositories |
-| `preflight.max_archive_age` | 90 s | `archive_timeout` is 30 s and the canary writes every second, so a segment ships at least every 30 s |
+| `preflight.max_archive_age` | 45 s | `archive_timeout` is 30 s and the canary writes every second, so a segment ships at least every 30 s; anything older means the primary is not archiving on schedule ([ADR 0005](adr/0005-checkpoint-after-start.md)) |
 | `preflight.max_canary_silence` | 10 s | The canary writes every second; silence means the measurement would be blind |
 
 ## Retention
@@ -69,5 +69,16 @@ All values are configuration and may be shortened in the drill environment.
 
 ## Cost
 
-The tier comparison (pilot light vs. warm standby: always-on resources and an
-estimated monthly cloud price) is added with site-b in milestone 3.
+The price of a tier is what runs all the time for disaster recovery alone.
+Both tiers share the vault and the backups, so only site b differs:
+
+| Tier | Always-on DR nodes | Estimated monthly cost |
+|---|---|---|
+| Pilot light | 0 (site b is built during the disaster) | $0 |
+| Warm standby | 3 (app, database, object store) | about $72 |
+
+The estimate assumes a small general-purpose VM (2 vCPU, 4 GB) at about
+$24 per month, a common list price at large clouds; storage and traffic are
+left out because both tiers pay them. The numbers live in `bia.yaml`
+(`tiers.*.cost`) and `disavery report tiers` puts them next to the measured
+RPO and RTO of every site-loss drill (S1).

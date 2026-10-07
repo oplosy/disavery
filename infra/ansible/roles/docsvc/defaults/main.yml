@@ -1,0 +1,2 @@
+# Only the active site serves; a warm standby's app is installed and stopped.
+docsvc_running: "{{ site == active_site }}"

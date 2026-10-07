@@ -1,0 +1,170 @@
+{"at":"2026-10-07T18:33:39.659508771Z","ok":true,"latency":22414792}
+{"at":"2026-10-07T18:33:40.1604709Z","ok":false,"latency":3426387,"err":"readyz: status 502"}
+{"at":"2026-10-07T18:33:40.660073884Z","ok":false,"latency":1882910,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:41.159927783Z","ok":false,"latency":2117833,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:41.660359477Z","ok":false,"latency":2209422,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:42.159833746Z","ok":false,"latency":1894714,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:42.660269426Z","ok":false,"latency":1792549,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:43.159977869Z","ok":false,"latency":2030556,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:43.659848357Z","ok":false,"latency":1904647,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:44.159629938Z","ok":false,"latency":2633308,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:44.660029175Z","ok":false,"latency":2377785,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:45.160472406Z","ok":false,"latency":2004824,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:45.66054301Z","ok":false,"latency":2583016,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:46.160003039Z","ok":false,"latency":2317875,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:46.660456221Z","ok":false,"latency":1847308,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:47.16026178Z","ok":false,"latency":1661395,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:47.66061519Z","ok":false,"latency":1813497,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:48.160546758Z","ok":false,"latency":2166223,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:48.659918606Z","ok":false,"latency":3551495,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:49.15986018Z","ok":false,"latency":2685396,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:49.659554367Z","ok":false,"latency":2011150,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:50.159632374Z","ok":false,"latency":4099325,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:50.6601655Z","ok":false,"latency":3096516,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:51.160621427Z","ok":false,"latency":3171753,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:51.65956415Z","ok":false,"latency":2439342,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:52.159910978Z","ok":false,"latency":1926188,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:52.659978183Z","ok":false,"latency":3324241,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:53.160650598Z","ok":false,"latency":2869644,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:53.659827576Z","ok":false,"latency":3479519,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:54.160631941Z","ok":false,"latency":2592801,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:54.660036708Z","ok":false,"latency":2099670,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:55.160306976Z","ok":false,"latency":2321943,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:55.659538917Z","ok":false,"latency":2480979,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:56.160144607Z","ok":false,"latency":3841540,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:56.659615926Z","ok":false,"latency":3746274,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:57.160366749Z","ok":false,"latency":1697560,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:57.659579136Z","ok":false,"latency":2845442,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:58.159723394Z","ok":false,"latency":2901395,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:58.660077843Z","ok":false,"latency":1748011,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:59.159647359Z","ok":false,"latency":2011467,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:33:59.660342326Z","ok":false,"latency":1806490,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:00.160078132Z","ok":false,"latency":2113043,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:00.660410471Z","ok":false,"latency":1784804,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:01.160404862Z","ok":false,"latency":3142445,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:01.660084842Z","ok":false,"latency":2621736,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:02.157973803Z","ok":false,"latency":2191580,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:02.658124289Z","ok":false,"latency":2206208,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:03.15824251Z","ok":false,"latency":1919360,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:03.658166332Z","ok":false,"latency":1952275,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:04.158263079Z","ok":false,"latency":1803397,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:04.65796837Z","ok":false,"latency":3406574,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:05.158381694Z","ok":false,"latency":2399072,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:05.657875798Z","ok":false,"latency":1747353,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:06.158564413Z","ok":false,"latency":2325786,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:06.657897606Z","ok":false,"latency":2471494,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:07.158232658Z","ok":false,"latency":2133877,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:07.658281887Z","ok":false,"latency":3540157,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:08.158773025Z","ok":false,"latency":2391307,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:08.657990124Z","ok":false,"latency":2121118,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:09.158026782Z","ok":false,"latency":1946904,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:09.658657428Z","ok":false,"latency":2502261,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:10.158168544Z","ok":false,"latency":1976937,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:10.658263223Z","ok":false,"latency":1841429,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:11.158063188Z","ok":false,"latency":2270270,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:11.658251303Z","ok":false,"latency":2438222,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:12.158764845Z","ok":false,"latency":2713148,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:12.658390297Z","ok":false,"latency":2273326,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:13.158764034Z","ok":false,"latency":3048856,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:13.658000515Z","ok":false,"latency":3495493,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:14.157973292Z","ok":false,"latency":1958781,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:14.657985405Z","ok":false,"latency":2996832,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:15.158195129Z","ok":false,"latency":2667433,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:15.657953198Z","ok":false,"latency":1991068,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:16.158913474Z","ok":false,"latency":1762433,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:16.658583913Z","ok":false,"latency":1589322,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:17.157994846Z","ok":false,"latency":1718259,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:17.658654369Z","ok":false,"latency":2280111,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:18.158810315Z","ok":false,"latency":1802653,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:18.65855345Z","ok":false,"latency":2050976,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:19.158539153Z","ok":false,"latency":1772855,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:19.658228011Z","ok":false,"latency":1930854,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:20.158003231Z","ok":false,"latency":1747454,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:20.658653177Z","ok":false,"latency":1647714,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:21.158918144Z","ok":false,"latency":1686423,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:21.658480533Z","ok":false,"latency":1651208,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:22.158018743Z","ok":false,"latency":1776748,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:22.658759502Z","ok":false,"latency":1779586,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:23.15800628Z","ok":false,"latency":1638263,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:23.658665622Z","ok":false,"latency":1730163,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:24.158859521Z","ok":false,"latency":2536930,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:24.658576671Z","ok":false,"latency":1666609,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:25.158101121Z","ok":false,"latency":1745567,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:25.658772251Z","ok":false,"latency":1734221,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:26.158326506Z","ok":false,"latency":1677396,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:26.658961367Z","ok":false,"latency":2095651,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:27.158026388Z","ok":false,"latency":2550634,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:27.658639108Z","ok":false,"latency":2494408,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:28.158059319Z","ok":false,"latency":2361360,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:28.658370431Z","ok":false,"latency":3135016,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:29.1581474Z","ok":false,"latency":1768928,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:29.658997566Z","ok":false,"latency":2126854,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:30.158100891Z","ok":false,"latency":2196841,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:30.658343335Z","ok":false,"latency":1768701,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:31.158044913Z","ok":false,"latency":2278511,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:31.658261233Z","ok":false,"latency":1940696,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:32.156985068Z","ok":false,"latency":1960376,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:32.657094378Z","ok":false,"latency":2952455,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:33.156881099Z","ok":false,"latency":2268328,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:33.656979031Z","ok":false,"latency":1744607,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:34.157711319Z","ok":false,"latency":1930445,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:34.657201912Z","ok":false,"latency":1534050,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:35.157346377Z","ok":false,"latency":1736019,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:35.656846723Z","ok":false,"latency":2171281,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:36.157272497Z","ok":false,"latency":1861730,"err":"readyz: status 503"}
+{"at":"2026-10-07T18:34:36.656705178Z","ok":false,"latency":3002271668,"err":"readyz: Get \"https://docs.disavery.test/readyz\": context deadline exceeded"}
+{"at":"2026-10-07T18:34:39.659280187Z","ok":false,"latency":2000981859,"err":"readyz: Get \"https://docs.disavery.test/readyz\": resolve docs.disavery.test.: read udp 172.31.0.2:43629-\u003e172.31.0.10:53: i/o timeout"}
+{"at":"2026-10-07T18:34:41.660534207Z","ok":true,"latency":25220243}
+{"at":"2026-10-07T18:34:42.157699977Z","ok":true,"latency":21113261}
+{"at":"2026-10-07T18:34:42.657084553Z","ok":true,"latency":25310398}
+{"at":"2026-10-07T18:34:43.157286065Z","ok":true,"latency":22304617}
+{"at":"2026-10-07T18:34:43.656863382Z","ok":true,"latency":21101008}
+{"at":"2026-10-07T18:34:44.157820932Z","ok":true,"latency":20872260}
+{"at":"2026-10-07T18:34:44.657588161Z","ok":true,"latency":26990194}
+{"at":"2026-10-07T18:34:45.157525495Z","ok":true,"latency":25910273}
+{"at":"2026-10-07T18:34:45.657330405Z","ok":true,"latency":25547967}
+{"at":"2026-10-07T18:34:46.157666828Z","ok":true,"latency":32594448}
+{"at":"2026-10-07T18:34:46.657159356Z","ok":true,"latency":25799789}
+{"at":"2026-10-07T18:34:47.157306362Z","ok":true,"latency":24205108}
+{"at":"2026-10-07T18:34:47.657532068Z","ok":true,"latency":29587908}
+{"at":"2026-10-07T18:34:48.157050076Z","ok":true,"latency":21553760}
+{"at":"2026-10-07T18:34:48.657297073Z","ok":true,"latency":19797992}
+{"at":"2026-10-07T18:34:49.157172803Z","ok":true,"latency":25117699}
+{"at":"2026-10-07T18:34:49.657124684Z","ok":true,"latency":21439249}
+{"at":"2026-10-07T18:34:50.156999286Z","ok":true,"latency":20388725}
+{"at":"2026-10-07T18:34:50.657156358Z","ok":true,"latency":24283236}
+{"at":"2026-10-07T18:34:51.157137415Z","ok":true,"latency":21513001}
+{"at":"2026-10-07T18:34:51.657278746Z","ok":true,"latency":18602668}
+{"at":"2026-10-07T18:34:52.156802395Z","ok":true,"latency":18931985}
+{"at":"2026-10-07T18:34:52.657239497Z","ok":true,"latency":20660872}
+{"at":"2026-10-07T18:34:53.157500814Z","ok":true,"latency":20481876}
+{"at":"2026-10-07T18:34:53.657159419Z","ok":true,"latency":19354866}
+{"at":"2026-10-07T18:34:54.157006119Z","ok":true,"latency":25688389}
+{"at":"2026-10-07T18:34:54.657407371Z","ok":true,"latency":32066159}
+{"at":"2026-10-07T18:34:55.156814122Z","ok":true,"latency":28416582}
+{"at":"2026-10-07T18:34:55.657058133Z","ok":true,"latency":29575130}
+{"at":"2026-10-07T18:34:56.15751138Z","ok":true,"latency":23347179}
+{"at":"2026-10-07T18:34:56.657749184Z","ok":true,"latency":33101003}
+{"at":"2026-10-07T18:34:57.157720074Z","ok":true,"latency":25967170}
+{"at":"2026-10-07T18:34:57.657562567Z","ok":true,"latency":26328595}
+{"at":"2026-10-07T18:34:58.156738007Z","ok":true,"latency":27585565}
+{"at":"2026-10-07T18:34:58.657105409Z","ok":true,"latency":26655501}
+{"at":"2026-10-07T18:34:59.15760473Z","ok":true,"latency":27853350}
+{"at":"2026-10-07T18:34:59.657308722Z","ok":true,"latency":24042477}
+{"at":"2026-10-07T18:35:00.157134838Z","ok":true,"latency":25975108}
+{"at":"2026-10-07T18:35:00.656926844Z","ok":true,"latency":27334825}
+{"at":"2026-10-07T18:35:01.157037937Z","ok":true,"latency":27413238}
+{"at":"2026-10-07T18:35:01.657162444Z","ok":true,"latency":28949451}
+{"at":"2026-10-07T18:35:02.15513355Z","ok":true,"latency":30077457}
+{"at":"2026-10-07T18:35:02.655667032Z","ok":true,"latency":32097585}
+{"at":"2026-10-07T18:35:03.155630109Z","ok":true,"latency":29237675}
+{"at":"2026-10-07T18:35:03.655761443Z","ok":true,"latency":25686005}
+{"at":"2026-10-07T18:35:04.155347219Z","ok":true,"latency":26122627}
+{"at":"2026-10-07T18:35:04.655244822Z","ok":true,"latency":25207415}
+{"at":"2026-10-07T18:35:05.15520428Z","ok":true,"latency":26718438}
+{"at":"2026-10-07T18:35:05.655988783Z","ok":true,"latency":31592691}
+{"at":"2026-10-07T18:35:06.155659256Z","ok":true,"latency":27144896}
+{"at":"2026-10-07T18:35:06.655142088Z","ok":true,"latency":38943854}
+{"at":"2026-10-07T18:35:07.154923524Z","ok":true,"latency":29376089}
+{"at":"2026-10-07T18:35:07.655270905Z","ok":true,"latency":23720695}
+{"at":"2026-10-07T18:35:08.155684706Z","ok":true,"latency":24986044}

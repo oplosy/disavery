@@ -1,4 +1,6 @@
-# Builds the lab. Target a site with -e target_site=a|b (default a).
+# Builds the lab for the current topology: active_site serves, standby_site
+# (if any) runs a warm standby. Both come from the inventory; change them with
+# `disavery env set`.
 - name: Prepare all nodes
   hosts: all
   gather_facts: false
@@ -26,24 +28,43 @@
     - role: minio
       minio_profile: vault
 
-- name: Site object store
-  hosts: "obj:&site_{{ target_site | default('a') }}"
+# The standby's bucket must exist before the active store replicates to it;
+# tasks run on all hosts in order, so the bucket is created first.
+- name: Site object stores
+  hosts: obj
   roles:
     - role: minio
       minio_profile: site
+      minio_replicate: "{{ site == active_site }}"
+      minio_standby_store: "{{ ('obj-' + standby_site) if (standby_site and site == active_site) else '' }}"
+      minio_seed_from: "{{ ('obj-' + active_site) if site == standby_site else '' }}"
 
-- name: Database
-  hosts: "db:&site_{{ target_site | default('a') }}"
+- name: Primary database
+  hosts: "db:&active"
   roles:
     - postgres
     - pgbackrest
+    - postgres_exporter
+
+- name: Standby database
+  hosts: "db:&standby"
+  roles:
+    - replica
+    - postgres_exporter
 
 - name: Payment provider mock
   hosts: webhooks
   roles:
     - webhookmock
 
-- name: Application
-  hosts: "app:&site_{{ target_site | default('a') }}"
+- name: Applications
+  hosts: app
   roles:
     - docsvc
+
+- name: Monitoring targets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - monitoring_targets

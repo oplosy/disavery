@@ -1,0 +1,140 @@
+id: s7-failback
+description: >-
+  After a site loss, bring site a back and move service home without losing a
+  write made in the DR site: rewind (warm standby) or restore (pilot light)
+  site a as a replica of site b, then a controlled switchover.
+tiers: [pilot-light, warm-standby]
+vars:
+  from_site: b
+  to_site: a
+preflight:
+  - id: running-in-dr
+    check: topology
+    with: { active_site: b, standby_site: "" }
+phases:
+  - name: recover
+    steps:
+      # Site a's machines come back with their crashed disks. Fence first: the
+      # old primary and its app must not serve before they rejoin as replicas.
+      - id: start-site-a
+        run: docker start app-{{.to_site}} db-{{.to_site}} obj-{{.to_site}}
+        timeout: 1m
+      - id: fence-old-primary
+        ssh:
+          host: db-{{.to_site}}
+          cmd: systemctl stop postgresql@16-main
+        retries: 5
+        timeout: 30s
+      - id: fence-old-app
+        ssh:
+          host: app-{{.to_site}}
+          cmd: systemctl disable --now docsvc
+        retries: 5
+        timeout: 30s
+      # Warm standby: the old primary still has its data; rewind it onto site
+      # b's timeline (connecting as replicator, password from .pgpass).
+      - id: rewind-db-a
+        when: "tier == 'warm-standby'"
+        ssh:
+          host: db-{{.to_site}}
+          cmd: >-
+            runuser -u postgres -- /usr/lib/postgresql/16/bin/pg_rewind
+            --target-pgdata=/var/lib/postgresql/16/main
+            --source-server='host=db-{{.from_site}} user=replicator dbname=postgres application_name=db-{{.to_site}}'
+            --write-recovery-conf --progress
+        timeout: 10m
+      # Pilot light: back up the DR primary and restore site a from that
+      # backup as a standby (delta restore reuses the old data files).
+      - id: backup-db-b
+        when: "tier == 'pilot-light'"
+        ssh:
+          host: db-{{.from_site}}
+          cmd: runuser -u postgres -- pgbackrest --stanza=main --repo=2 --type=full backup
+        timeout: 15m
+      - id: restore-db-a
+        when: "tier == 'pilot-light'"
+        ssh:
+          host: db-{{.to_site}}
+          cmd: >-
+            runuser -u postgres -- pgbackrest --stanza=main --repo=2 --type=standby --delta
+            --recovery-option='primary_conninfo=host=db-{{.from_site}} user=replicator application_name=db-{{.to_site}}'
+            restore
+        timeout: 15m
+      # Both: site a joins as a streaming standby of site b.
+      - id: rejoin-as-standby
+        run: >-
+          build/disavery env set standby_site={{.to_site}} &&
+          terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve -target=local_file.inventory &&
+          ansible-playbook infra/ansible/playbooks/site.yml
+        timeout: 20m
+      # Controlled switchover. Stopping the app ends writes; a clean shutdown
+      # of the primary sends every WAL record to the standby before it exits.
+      - id: stop-app-b
+        ssh: { host: "app-{{.from_site}}", cmd: "systemctl disable --now docsvc" }
+        timeout: 1m
+      - id: stop-db-b
+        ssh: { host: "db-{{.from_site}}", cmd: "systemctl stop postgresql@16-main" }
+        timeout: 2m
+      - id: promote-db-a
+        ssh:
+          host: db-{{.to_site}}
+          cmd: >-
+            pg_ctlcluster 16 main promote &&
+            until [ "$(runuser -u postgres -- psql -XAtc 'SELECT pg_is_in_recovery()')" = f ]; do sleep 0.2; done
+        timeout: 1m
+      - id: copy-dr-attachments
+        run: build/disavery attachments copy --from obj-{{.from_site}} --to obj-{{.to_site}}
+        timeout: 10m
+      - id: start-app-a
+        ssh: { host: "app-{{.to_site}}", cmd: "systemctl enable --now docsvc" }
+        timeout: 1m
+      - id: repoint-traffic
+        run: >-
+          build/disavery env set active_site={{.to_site}} standby_site= &&
+          terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve
+          -target=docker_container.dns -target=docker_container.edge -target=local_file.inventory
+        timeout: 5m
+      - id: repoint-third-parties
+        run: ansible-playbook infra/ansible/playbooks/repoint.yml
+        timeout: 10m
+      - id: service-ready
+        wait_http: { url: "https://docs.disavery.test/readyz" }
+        timeout: 2m
+      # Back to the tier's baseline. Warm standby: site b rewinds onto site a's
+      # new timeline and streams again. Pilot light: site b is retired.
+      - id: rewind-db-b
+        when: "tier == 'warm-standby'"
+        ssh:
+          host: db-{{.from_site}}
+          cmd: >-
+            runuser -u postgres -- /usr/lib/postgresql/16/bin/pg_rewind
+            --target-pgdata=/var/lib/postgresql/16/main
+            --source-server='host=db-{{.to_site}} user=replicator dbname=postgres application_name=db-{{.from_site}}'
+            --write-recovery-conf --progress
+        timeout: 10m
+      - id: baseline-warm-standby
+        when: "tier == 'warm-standby'"
+        run: >-
+          build/disavery env set standby_site={{.from_site}} &&
+          terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve &&
+          ansible-playbook infra/ansible/playbooks/site.yml
+        timeout: 20m
+      - id: baseline-pilot-light
+        when: "tier == 'pilot-light'"
+        run: >-
+          build/disavery env set site_b_enabled=false &&
+          terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve &&
+          ansible-playbook infra/ansible/playbooks/site.yml
+        timeout: 20m
+  - name: verify
+    steps:
+      - { id: data-loss, check: canary }
+      - { id: downtime, check: prober }
+      - { id: integrity, check: amcheck, with: { host: "db-{{.to_site}}" } }
+      - { id: rules, check: business-rules, with: { host: "db-{{.to_site}}" } }
+      - { id: attachments, check: db-object-consistency, with: { host: "db-{{.to_site}}", store: "obj-{{.to_site}}" } }
+      - { id: payment-callback, check: webhook-roundtrip }
+      - id: replica-healthy
+        when: "tier == 'warm-standby'"
+        check: replication
+        with: { primary: "db-{{.to_site}}", standby: "db-{{.from_site}}", max_lag: 5s }

@@ -1,0 +1,18 @@
+groups:
+  - name: disavery
+    rules:
+      - alert: PostgresPrimaryDown
+        expr: up{job="postgres", role="primary"} == 0 or pg_up{job="postgres", role="primary"} == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "The primary database {{ $labels.instance }} does not answer"
+
+      - alert: ReplicationLagHigh
+        expr: pg_replication_lag_seconds{job="postgres", role="standby"} > 5
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Standby {{ $labels.instance }} replays {{ $value | humanizeDuration }} behind the primary"

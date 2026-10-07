@@ -21,6 +21,7 @@ services:
       - gomod:/go/pkg/mod
       - tfcache:/root/.terraform.d/plugin-cache
       - state:/state
+      - monitoring:/monitoring
     networks:
       wan:
         ipv4_address: 172.31.0.2
@@ -60,6 +61,8 @@ volumes:
     name: disavery-escrow
   state:
     name: disavery-state
+  monitoring:
+    name: disavery-monitoring
   gocache: {}
   gomod: {}
   tfcache: {}

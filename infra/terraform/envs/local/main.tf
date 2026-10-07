@@ -17,11 +17,13 @@ locals {
   # Every address in the lab, including disabled sites, so DNS/inventory can refer to them.
   ip = merge(
     {
-      dns     = cidrhost(var.wan_subnet, 10)
-      edge    = cidrhost(var.wan_subnet, 11)
-      webhook = cidrhost(var.wan_subnet, 12)
-      vault   = cidrhost(var.wan_subnet, 40)
-      restore = cidrhost(var.wan_subnet, 50)
+      dns          = cidrhost(var.wan_subnet, 10)
+      edge         = cidrhost(var.wan_subnet, 11)
+      webhook      = cidrhost(var.wan_subnet, 12)
+      vault        = cidrhost(var.wan_subnet, 40)
+      restore      = cidrhost(var.wan_subnet, 50)
+      prometheus   = cidrhost(var.wan_subnet, 13)
+      alertmanager = cidrhost(var.wan_subnet, 14)
     },
     {
       for pair in setproduct(keys(local.site_cfg), keys(local.site_roles)) :

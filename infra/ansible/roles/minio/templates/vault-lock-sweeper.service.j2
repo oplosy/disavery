@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply compliance retention to replicated objects
+After=minio.service
+
+[Service]
+Type=oneshot
+# The "local" mc alias (vault root) lives in /root/.mc.
+Environment=HOME=/root
+ExecStart=/usr/local/bin/vault-lock-sweeper

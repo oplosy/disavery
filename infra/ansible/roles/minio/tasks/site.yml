@@ -1,0 +1,53 @@
+- name: Create the attachments bucket
+  ansible.builtin.command: mc mb local/attachments
+  register: site_mb
+  # See vault.yml: --ignore-existing always reports "created successfully".
+  changed_when: site_mb.rc == 0
+  failed_when: site_mb.rc != 0 and 'already own it' not in site_mb.stderr
+
+- name: Enable versioning
+  ansible.builtin.command: mc version enable local/attachments
+  changed_when: false
+
+- name: Copy the docsvc policy
+  ansible.builtin.copy:
+    src: docsvc-policy.json
+    dest: /etc/minio/docsvc-policy.json
+    mode: "0644"
+
+- name: Create the docsvc policy
+  ansible.builtin.command: mc admin policy create local docsvc-rw /etc/minio/docsvc-policy.json
+  changed_when: false
+
+- name: Create the docsvc user
+  ansible.builtin.command: >-
+    mc admin user add local {{ secrets.minio.app_access_key }} {{ secrets.minio.app_secret_key }}
+  changed_when: false
+  no_log: true
+
+- name: Read the docsvc user's policies
+  ansible.builtin.command: mc admin user info --json local {{ secrets.minio.app_access_key }}
+  register: site_app_info
+  changed_when: false
+
+# See vault.yml: attaching is not idempotent in this mc release.
+- name: Attach the policy to docsvc
+  ansible.builtin.command: mc admin policy attach local docsvc-rw --user {{ secrets.minio.app_access_key }}
+  when: "'docsvc-rw' not in ((site_app_info.stdout | from_json).policyName | default('')).split(',')"
+  changed_when: true
+
+- name: Read replication rules
+  ansible.builtin.command: mc replicate ls --json local/attachments
+  register: site_replication
+  changed_when: false
+  failed_when: false
+
+- name: Replicate attachments to the vault
+  ansible.builtin.command: >-
+    mc replicate add local/attachments
+    --remote-bucket "https://{{ secrets.minio.vault_writer_access_key }}:{{ secrets.minio.vault_writer_secret_key }}@vault:9000/attachments"
+    --replicate "delete-marker,existing-objects"
+    --priority 1
+  when: site_replication.rc != 0 or 'Enabled' not in site_replication.stdout
+  changed_when: true
+  no_log: true

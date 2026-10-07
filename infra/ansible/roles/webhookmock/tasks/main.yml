@@ -1,0 +1,38 @@
+- name: Install the webhookmock binary
+  ansible.builtin.copy:
+    src: /work/build/webhookmock
+    dest: /usr/local/bin/webhookmock
+    mode: "0755"
+  notify: Restart webhookmock
+
+- name: Write the webhookmock environment
+  ansible.builtin.template:
+    src: webhookmock.env.j2
+    dest: /etc/webhookmock.env
+    mode: "0600"
+  notify: Restart webhookmock
+
+- name: Install the webhookmock unit
+  ansible.builtin.template:
+    src: webhookmock.service.j2
+    dest: /etc/systemd/system/webhookmock.service
+    mode: "0644"
+  notify: Restart webhookmock
+
+- name: Start webhookmock
+  ansible.builtin.systemd_service:
+    name: webhookmock
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Apply webhookmock restarts now
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for webhookmock
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8081/healthz
+  register: webhookmock_ready
+  until: webhookmock_ready.status == 200
+  retries: 15
+  delay: 1

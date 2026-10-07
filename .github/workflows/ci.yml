@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Line endings are LF
+        run: test -z "$(git ls-files --eol | grep -v 'i/lf' | grep -v 'i/-text')"
+      - run: go vet ./...
+      - name: Build the MinIO image used by integration tests (ADR 0003)
+        run: make minio-image
+      - run: go test -race ./...
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
+  infra:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive infra/terraform
+      - run: terraform -chdir=infra/terraform/envs/local init -backend=false -input=false
+      - run: terraform -chdir=infra/terraform/envs/local validate
+      - name: ansible-lint
+        working-directory: infra/ansible
+        env:
+          ANSIBLE_ROLES_PATH: ${{ github.workspace }}/infra/ansible/roles
+        run: |
+          pip install -r ../../images/toolbox/requirements.txt
+          ansible-galaxy collection install -r ../../images/toolbox/requirements.yml
+          ansible-lint playbooks roles

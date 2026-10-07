@@ -1,0 +1,5 @@
+- name: Restart docsvc
+  ansible.builtin.systemd_service:
+    name: docsvc
+    state: restarted
+    daemon_reload: true

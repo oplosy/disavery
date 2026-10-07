@@ -1,0 +1,98 @@
+- name: Create minio-user
+  ansible.builtin.user:
+    name: minio-user
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Install MinIO server
+  ansible.builtin.copy:
+    src: "{{ minio_bin_src }}"
+    dest: /usr/local/bin/minio
+    mode: "0755"
+  notify: Restart MinIO
+
+- name: Install MinIO client
+  ansible.builtin.copy:
+    src: "{{ minio_mc_bin_src }}"
+    dest: /usr/local/bin/mc
+    mode: "0755"
+
+- name: Create MinIO directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: minio-user
+    group: minio-user
+    mode: "0750"
+  loop:
+    - "{{ minio_data_dir }}"
+    - "{{ minio_certs_dir }}"
+    - "{{ minio_certs_dir }}/CAs"
+
+- name: Trust the disavery CA for outbound TLS (replication)
+  ansible.builtin.copy:
+    content: "{{ secrets.tls.ca_crt }}"
+    dest: "{{ minio_certs_dir }}/CAs/disavery-ca.crt"
+    owner: minio-user
+    group: minio-user
+    mode: "0644"
+  notify: Restart MinIO
+
+- name: Install the vault TLS certificate
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ minio_certs_dir }}/{{ item.name }}"
+    owner: minio-user
+    group: minio-user
+    mode: "{{ item.mode }}"
+  loop:
+    - { name: public.crt, content: "{{ secrets.tls.vault_crt }}", mode: "0644" }
+    - { name: private.key, content: "{{ secrets.tls.vault_key }}", mode: "0600" }
+  loop_control:
+    label: "{{ item.name }}"
+  when: minio_profile == 'vault'
+  notify: Restart MinIO
+
+- name: Write MinIO environment
+  ansible.builtin.template:
+    src: minio.env.j2
+    dest: /etc/default/minio
+    mode: "0600"
+  notify: Restart MinIO
+
+- name: Install MinIO unit
+  ansible.builtin.template:
+    src: minio.service.j2
+    dest: /etc/systemd/system/minio.service
+    mode: "0644"
+  notify: Restart MinIO
+
+- name: Start MinIO
+  ansible.builtin.systemd_service:
+    name: minio
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Apply MinIO restarts now
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for MinIO to be ready
+  ansible.builtin.uri:
+    url: "{{ minio_scheme }}://{{ inventory_hostname }}:9000/minio/health/ready"
+    ca_path: "{{ disavery_ca_path }}"
+  register: minio_ready
+  until: minio_ready.status == 200
+  retries: 30
+  delay: 2
+
+- name: Configure the local mc alias
+  ansible.builtin.command: >-
+    mc alias set local {{ minio_scheme }}://{{ inventory_hostname }}:9000
+    {{ minio_root_user }} {{ minio_root_password }}
+  changed_when: false
+  no_log: true
+
+- name: Apply profile-specific configuration
+  ansible.builtin.include_tasks: "{{ minio_profile }}.yml"

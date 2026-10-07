@@ -1,0 +1,49 @@
+# Builds the lab. Target a site with -e target_site=a|b (default a).
+- name: Prepare all nodes
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Wait for SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 60
+
+    - name: Load SOPS secrets
+      community.sops.load_vars:
+        file: "{{ secrets_file }}"
+        name: secrets
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+- name: Base configuration
+  hosts: all
+  roles:
+    - base
+
+- name: Vault object store
+  hosts: vaults
+  roles:
+    - role: minio
+      minio_profile: vault
+
+- name: Site object store
+  hosts: "obj:&site_{{ target_site | default('a') }}"
+  roles:
+    - role: minio
+      minio_profile: site
+
+- name: Database
+  hosts: "db:&site_{{ target_site | default('a') }}"
+  roles:
+    - postgres
+    - pgbackrest
+
+- name: Payment provider mock
+  hosts: webhooks
+  roles:
+    - webhookmock
+
+- name: Application
+  hosts: "app:&site_{{ target_site | default('a') }}"
+  roles:
+    - docsvc

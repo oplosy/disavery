@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily full pgBackRest backup
+
+[Timer]
+OnCalendar={{ pgbackrest_full_schedule }}
+Persistent=true
+Unit=pgbackrest-backup@full.service
+
+[Install]
+WantedBy=timers.target

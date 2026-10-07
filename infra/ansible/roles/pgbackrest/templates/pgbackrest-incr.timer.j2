@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly incremental pgBackRest backup
+
+[Timer]
+OnCalendar={{ pgbackrest_incr_schedule }}
+Persistent=true
+Unit=pgbackrest-backup@incr.service
+
+[Install]
+WantedBy=timers.target

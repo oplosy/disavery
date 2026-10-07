@@ -21,9 +21,10 @@ and spec disagree, raise it — don't silently diverge.
 
 ## Status
 
-Only the spec and the M1 plan exist; no code yet. Implementation starts on
-branch `feat/m1-environment` (plan Task 1). Update this section as milestones
-ship.
+M1 is implemented on branch `feat/m1-environment` (all 15 plan tasks; see the
+plan's "Amendments during implementation" for deviations: MinIO built from
+source, replica lock sweeper, Docker 29 quirks). Next: plan 2. Update this
+section as milestones ship.
 
 | Milestone | Scope |
 |---|---|

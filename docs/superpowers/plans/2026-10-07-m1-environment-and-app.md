@@ -38,6 +38,34 @@ Note: the spec lists monitoring in milestone 5, but S1's `detect` phase needs Al
 - `archive_timeout = 30`.
 - Never commit on `main`; one task = one or more conventional commits on the feature branch. Every commit message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
+## Amendments during implementation
+
+- **MinIO is built from source (2026-10-07).** MinIO no longer serves community
+  artifacts: the `minio/minio` Docker Hub repository is gone and
+  `dl.min.io/.../archive/` answers `410 Gone`. The pinned releases
+  (`minio RELEASE.2024-10-13T13-34-11Z`, `mc RELEASE.2024-10-08T09-37-26Z`) are
+  now built from their upstream Git tags (commit-verified) by
+  `images/minio/Dockerfile` into `disavery/minio:local` (`make minio-image`).
+  Integration tests use that image; the toolbox copies `minio` and `mc` from it;
+  the Ansible MinIO role copies the binaries from the toolbox to the nodes
+  instead of downloading them. ADR 0003 records the decision.
+- **Replicas are locked by a sweeper (2026-10-07).** MinIO does not apply the
+  vault bucket's default retention to replicated objects, so attachment
+  replicas arrived unlocked and the vault root could delete them (caught by
+  `make smoke`). A one-minute systemd timer on the vault locks unlocked versions
+  in compliance mode; the smoke test waits for the lock. ADR 0004.
+- **App → database over the zone network (2026-10-07).** Docker's DNS resolves
+  `db-<site>` to its zone address, so `pg_hba` allows the app from the site's
+  `zone_subnet` (exported by the Terraform inventory); replication stays on the WAN.
+- **Stable image IDs (2026-10-07).** With Docker 29's containerd image store,
+  BuildKit's default provenance attestation changes the image ID on every
+  cached rebuild, which made Terraform replace every node on the second
+  `make up`. Node and MinIO images are built with `--provenance=false`.
+- **Terraform on Docker 29 (2026-10-07).** Modules declare the
+  `kreuzwerker/docker` source; containers set `network_mode = "bridge"`,
+  networks set their IPAM gateway, and nodes reference the image by ID, because
+  the provider reads those values back and would otherwise force replacement.
+
 ## Review Focus
 
 1. **Windows checkout line endings** — with `core.autocrlf=true`, shell scripts and templates would reach Linux containers with CRLF and fail with `$'\r': command not found`. Expect every text file to be LF in the working tree. Pinned in Task 1 (Step 6) and in CI (Task 15).
@@ -93,6 +121,9 @@ linters:
     - bodyclose
     - errorlint
     - misspell
+  exclusions:
+    presets:
+      - std-error-handling
 ```
 
 `Makefile`:
@@ -716,7 +747,7 @@ func startMinIO(t *testing.T) env {
 		t.Skip("integration test: needs Docker")
 	}
 	ctx := context.Background()
-	ctr, err := tcminio.Run(ctx, "minio/minio:RELEASE.2024-10-13T13-34-11Z")
+	ctr, err := tcminio.Run(ctx, "disavery/minio:local") // built by `make minio-image`
 	testcontainers.CleanupContainer(t, ctr)
 	if err != nil {
 		t.Fatalf("start minio: %v", err)
@@ -2291,7 +2322,7 @@ git commit -m "feat: add docsvc binary"
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: image `disavery/node:local` (Debian 12, systemd PID 1, sshd with root key login, python3); running container `disavery-toolbox` (image `disavery/toolbox:local`) at `172.31.0.2` on network `disavery-wan`, repo mounted at `/work`, volumes `/secrets`, `/escrow`, Docker socket mounted, `SOPS_AGE_KEY_FILE=/secrets/age/keys.txt`, `ANSIBLE_CONFIG=/work/infra/ansible/ansible.cfg`; tools: go, terraform, ansible-playbook, ansible-lint, sops, age, step, mc, docker CLI, psql, dig, jq, ssh. Make targets `toolbox`, `images`.
+- Produces: image `disavery/node:local` (Debian 12, systemd PID 1, sshd with root key login, python3); running container `disavery-toolbox` (image `disavery/toolbox:local`) at `172.31.0.2` on network `disavery-wan`, repo mounted at `/work`, volumes `/secrets`, `/escrow`, Docker socket mounted, `SOPS_AGE_KEY_FILE=/secrets/age/keys.txt`, `ANSIBLE_CONFIG=/work/infra/ansible/ansible.cfg`; tools: go, terraform, ansible-playbook, ansible-lint, sops, age, step, mc, minio, docker CLI, psql, dig, jq, ssh. Make targets `toolbox`, `images`.
 
 - [ ] **Step 1: Write the node image**
 
@@ -2347,7 +2378,6 @@ ARG TERRAFORM_VERSION=1.9.8
 ARG SOPS_VERSION=3.9.1
 ARG AGE_VERSION=1.2.0
 ARG STEP_VERSION=0.27.4
-ARG MC_RELEASE=RELEASE.2024-10-08T09-37-26Z
 ARG DOCKER_VERSION=27.3.1
 
 RUN apt-get update \
@@ -2363,10 +2393,12 @@ RUN curl -fsSLo /tmp/tf.zip "https://releases.hashicorp.com/terraform/${TERRAFOR
     | tar -xz -C /usr/local/bin --strip-components=1 age/age age/age-keygen \
  && curl -fsSL "https://github.com/smallstep/cli/releases/download/v${STEP_VERSION}/step_linux_${STEP_VERSION}_amd64.tar.gz" \
     | tar -xz -C /usr/local/bin --strip-components=2 "step_${STEP_VERSION}/bin/step" \
- && curl -fsSLo /usr/local/bin/mc "https://dl.min.io/client/mc/release/linux-amd64/archive/mc.${MC_RELEASE}" \
- && chmod +x /usr/local/bin/mc \
  && curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz" \
     | tar -xz -C /usr/local/bin --strip-components=1 docker/docker
+
+# minio and mc come from the locally built image (make minio-image); Ansible
+# copies minio from here to the object-storage nodes.
+COPY --from=disavery/minio:local /usr/local/bin/minio /usr/local/bin/mc /usr/local/bin/
 
 COPY requirements.txt requirements.yml /tmp/
 RUN python3 -m venv /opt/ansible \
@@ -2433,11 +2465,11 @@ Append to `Makefile`:
 TB := docker compose exec -T toolbox
 
 .PHONY: toolbox
-toolbox: ## Build and start the toolbox container
+toolbox: minio-image ## Build and start the toolbox container
 	docker compose up -d --build toolbox
 
 .PHONY: images
-images: ## Build the node image
+images: minio-image ## Build the node and MinIO images
 	docker build -t disavery/node:local images/node
 ```
 
@@ -2619,8 +2651,8 @@ git commit -m "feat: add SOPS/age secrets bootstrap with key escrow"
 ### Task 10: Terraform — networks, nodes, global zone and inventory
 
 **Files:**
-- Create: `infra/terraform/modules/node/{main.tf,variables.tf,outputs.tf}`
-- Create: `infra/terraform/modules/site/{main.tf,variables.tf}`
+- Create: `infra/terraform/modules/node/{main.tf,variables.tf,outputs.tf,versions.tf}`
+- Create: `infra/terraform/modules/site/{main.tf,variables.tf,versions.tf}`
 - Create: `infra/terraform/envs/local/{versions.tf,variables.tf,main.tf,global.tf,sites.tf,vault.tf,inventory.tf,outputs.tf}`
 - Create: `infra/terraform/envs/local/templates/{Corefile.tftpl,Caddyfile.tftpl}`
 - Create: `docs/adr/0002-global-zone-survives-site-loss.md`
@@ -2674,14 +2706,24 @@ variable "labels" {
 `infra/terraform/modules/node/main.tf`:
 ```hcl
 # A lab machine: systemd + sshd container (see ADR 0001).
+
+# Resolve the tag to an image ID: the provider stores the ID, so passing the tag
+# would force a replacement on every apply.
+data "docker_image" "this" {
+  name = var.image
+}
+
 resource "docker_container" "this" {
   name       = var.name
   hostname   = var.name
-  image      = var.image
+  image      = data.docker_image.this.id
   privileged = true
   must_run   = true
   restart    = "no"
-  dns        = var.dns
+  # Docker reports "bridge" even when only networks_advanced are attached;
+  # leaving it unset makes every plan replace the container.
+  network_mode = "bridge"
+  dns          = var.dns
   tmpfs = {
     "/run"      = "rw"
     "/run/lock" = "rw"
@@ -2718,6 +2760,17 @@ resource "docker_container" "this" {
 ```hcl
 output "name" {
   value = docker_container.this.name
+}
+```
+
+`infra/terraform/modules/node/versions.tf` (identical copy in `modules/site/versions.tf`; without it the modules resolve `hashicorp/docker`, which does not exist):
+```hcl
+terraform {
+  required_providers {
+    docker = {
+      source = "kreuzwerker/docker"
+    }
+  }
 }
 ```
 
@@ -2763,7 +2816,8 @@ variable "uploads" {
 resource "docker_network" "zone" {
   name = "disavery-site-${var.site}"
   ipam_config {
-    subnet = var.subnet
+    subnet  = var.subnet
+    gateway = cidrhost(var.subnet, 1) # Docker fills it in; unset would force replacement
   }
   labels {
     label = "disavery.env"
@@ -2926,6 +2980,8 @@ resource "docker_container" "dns" {
   image   = docker_image.coredns.image_id
   command = ["-conf", "/Corefile"]
   restart = "unless-stopped"
+  # See modules/node: Docker reports "bridge" for networks_advanced-only containers.
+  network_mode = "bridge"
 
   networks_advanced {
     name         = data.docker_network.wan.name
@@ -2950,7 +3006,9 @@ resource "docker_container" "edge" {
   name    = "edge"
   image   = docker_image.caddy.image_id
   restart = "unless-stopped"
-  dns     = [local.ip.dns]
+  # See modules/node: Docker reports "bridge" for networks_advanced-only containers.
+  network_mode = "bridge"
+  dns          = [local.ip.dns]
 
   ports {
     internal = 443
@@ -3052,7 +3110,8 @@ module "site" {
 resource "docker_network" "vault" {
   name = "disavery-vault"
   ipam_config {
-    subnet = "172.31.3.0/24"
+    subnet  = "172.31.3.0/24"
+    gateway = "172.31.3.1" # Docker fills it in; unset would force replacement
   }
   labels {
     label = "disavery.env"
@@ -3090,7 +3149,11 @@ resource "local_file" "inventory" {
         },
         {
           for role in keys(local.site_roles) : role => {
-            hosts = { for s in local.enabled_sites : "${role}-${s}" => { wan_ip = local.ip["${role}-${s}"], site = s } }
+            hosts = { for s in local.enabled_sites : "${role}-${s}" => {
+              wan_ip      = local.ip["${role}-${s}"]
+              site        = s
+              zone_subnet = local.site_cfg[s].subnet
+            } }
           }
         },
         {
@@ -3193,7 +3256,7 @@ git commit -m "feat: add Terraform lab environment and generated inventory"
 
 **Interfaces:**
 - Consumes: inventory from Task 10; secrets from Task 9.
-- Produces: fact `secrets` (decrypted SOPS map) on every host for the rest of the play run; disavery CA trusted system-wide on every node at `/usr/local/share/ca-certificates/disavery-ca.crt`; group vars `pg_version: 16`, `pgbackrest_stanza: main`, `wan_subnet`, `secrets_file`, `minio_release`, `mc_release`, `vault_retention_days: 14`; play variable `target_site` (extra var, default `a`). Make target `configure`.
+- Produces: fact `secrets` (decrypted SOPS map) on every host for the rest of the play run; disavery CA trusted system-wide on every node at `/usr/local/share/ca-certificates/disavery-ca.crt`; group vars `pg_version: 16`, `pgbackrest_stanza: main`, `wan_subnet`, `secrets_file`, `vault_retention_days: 14`; play variable `target_site` (extra var, default `a`). Make target `configure`.
 
 - [ ] **Step 1: Write configuration and group vars**
 
@@ -3231,8 +3294,6 @@ disavery_ca_path: /usr/local/share/ca-certificates/disavery-ca.crt
 pg_version: 16
 pgbackrest_stanza: main
 
-minio_release: RELEASE.2024-10-13T13-34-11Z
-mc_release: RELEASE.2024-10-08T09-37-26Z
 vault_retention_days: 14
 ```
 
@@ -3326,7 +3387,7 @@ git commit -m "feat: add Ansible skeleton and base role"
 - Create: `infra/ansible/roles/minio/handlers/main.yml`
 - Create: `infra/ansible/roles/minio/templates/{minio.env.j2,minio.service.j2,prod-writer.json.j2}`
 - Create: `infra/ansible/roles/minio/files/docsvc-policy.json`
-- Create: `docs/adr/0003-minio-pinned-release.md`
+- Create: `docs/adr/0003-minio-built-from-source.md`
 - Modify: `infra/ansible/playbooks/site.yml`
 
 **Interfaces:**
@@ -3343,11 +3404,15 @@ git commit -m "feat: add Ansible skeleton and base role"
 minio_profile: site # site | vault
 minio_data_dir: /var/lib/minio
 minio_certs_dir: /etc/minio/certs
-minio_bin_url: "https://dl.min.io/server/minio/release/linux-amd64/archive/minio.{{ minio_release }}"
-mc_bin_url: "https://dl.min.io/client/mc/release/linux-amd64/archive/mc.{{ mc_release }}"
+# Built from pinned sources into the toolbox image (ADR 0003); paths on the controller.
+minio_bin_src: /usr/local/bin/minio
+minio_mc_bin_src: /usr/local/bin/mc
 minio_scheme: "{{ 'https' if minio_profile == 'vault' else 'http' }}"
 minio_root_user: "{{ secrets.minio.vault_root_user if minio_profile == 'vault' else secrets.minio.site_root_user }}"
 minio_root_password: "{{ secrets.minio.vault_root_password if minio_profile == 'vault' else secrets.minio.site_root_password }}"
+# Replicas arrive without the bucket's default retention; a timer locks them (ADR 0004).
+minio_vault_replicated_buckets: [attachments]
+minio_vault_sweep_interval: 1min
 ```
 
 `infra/ansible/roles/minio/handlers/main.yml`:
@@ -3456,17 +3521,15 @@ WantedBy=multi-user.target
     create_home: false
 
 - name: Install MinIO server
-  ansible.builtin.get_url:
-    url: "{{ minio_bin_url }}"
-    checksum: "sha256:{{ minio_bin_url }}.sha256sum"
+  ansible.builtin.copy:
+    src: "{{ minio_bin_src }}"
     dest: /usr/local/bin/minio
     mode: "0755"
   notify: Restart MinIO
 
 - name: Install MinIO client
-  ansible.builtin.get_url:
-    url: "{{ mc_bin_url }}"
-    checksum: "sha256:{{ mc_bin_url }}.sha256sum"
+  ansible.builtin.copy:
+    src: "{{ minio_mc_bin_src }}"
     dest: /usr/local/bin/mc
     mode: "0755"
 
@@ -3555,10 +3618,13 @@ WantedBy=multi-user.target
 `infra/ansible/roles/minio/tasks/vault.yml`:
 ```yaml
 - name: Create Object Lock buckets
-  ansible.builtin.command: mc mb --ignore-existing --with-lock local/{{ item }}
+  ansible.builtin.command: mc mb --with-lock local/{{ item }}
   loop: [pgbackrest, attachments]
   register: vault_mb
-  changed_when: "'created successfully' in vault_mb.stdout"
+  # This mc release claims "created successfully" for existing buckets even with
+  # --ignore-existing, so treat its "already own it" error as unchanged instead.
+  changed_when: vault_mb.rc == 0
+  failed_when: vault_mb.rc != 0 and 'already own it' not in vault_mb.stderr
 
 - name: Set default compliance retention
   ansible.builtin.command: mc retention set --default compliance {{ vault_retention_days }}d local/{{ item }}
@@ -3596,11 +3662,36 @@ WantedBy=multi-user.target
   changed_when: false
   no_log: true
 
+- name: Read the production writer's policies
+  ansible.builtin.command: mc admin user info --json local {{ secrets.minio.vault_writer_access_key }}
+  register: vault_writer_info
+  changed_when: false
+
+# Attaching is not idempotent in this mc release (rc 0 every time), so check first.
 - name: Attach the policy to the production writer
   ansible.builtin.command: mc admin policy attach local prod-writer --user {{ secrets.minio.vault_writer_access_key }}
-  register: vault_attach
-  changed_when: vault_attach.rc == 0
-  failed_when: vault_attach.rc != 0 and 'already' not in (vault_attach.stderr + vault_attach.stdout)
+  when: "'prod-writer' not in ((vault_writer_info.stdout | from_json).policyName | default('')).split(',')"
+  changed_when: true
+
+- name: Install the replica lock sweeper
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: vault-lock-sweeper.sh.j2, dest: /usr/local/bin/vault-lock-sweeper, mode: "0755" }
+    - { src: vault-lock-sweeper.service.j2, dest: /etc/systemd/system/vault-lock-sweeper.service, mode: "0644" }
+    - { src: vault-lock-sweeper.timer.j2, dest: /etc/systemd/system/vault-lock-sweeper.timer, mode: "0644" }
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Restart the replica lock sweeper
+
+- name: Enable the replica lock sweeper
+  ansible.builtin.systemd_service:
+    name: vault-lock-sweeper.timer
+    state: started
+    enabled: true
+    daemon_reload: true
 ```
 
 - [ ] **Step 4: Write the site tasks**
@@ -3608,9 +3699,11 @@ WantedBy=multi-user.target
 `infra/ansible/roles/minio/tasks/site.yml`:
 ```yaml
 - name: Create the attachments bucket
-  ansible.builtin.command: mc mb --ignore-existing local/attachments
+  ansible.builtin.command: mc mb local/attachments
   register: site_mb
-  changed_when: "'created successfully' in site_mb.stdout"
+  # See vault.yml: --ignore-existing always reports "created successfully".
+  changed_when: site_mb.rc == 0
+  failed_when: site_mb.rc != 0 and 'already own it' not in site_mb.stderr
 
 - name: Enable versioning
   ansible.builtin.command: mc version enable local/attachments
@@ -3632,11 +3725,16 @@ WantedBy=multi-user.target
   changed_when: false
   no_log: true
 
+- name: Read the docsvc user's policies
+  ansible.builtin.command: mc admin user info --json local {{ secrets.minio.app_access_key }}
+  register: site_app_info
+  changed_when: false
+
+# See vault.yml: attaching is not idempotent in this mc release.
 - name: Attach the policy to docsvc
   ansible.builtin.command: mc admin policy attach local docsvc-rw --user {{ secrets.minio.app_access_key }}
-  register: site_attach
-  changed_when: site_attach.rc == 0
-  failed_when: site_attach.rc != 0 and 'already' not in (site_attach.stderr + site_attach.stdout)
+  when: "'docsvc-rw' not in ((site_app_info.stdout | from_json).policyName | default('')).split(',')"
+  changed_when: true
 
 - name: Read replication rules
   ansible.builtin.command: mc replicate ls --json local/attachments
@@ -3675,27 +3773,41 @@ Append to `infra/ansible/playbooks/site.yml`:
 
 - [ ] **Step 6: Write ADR 0003**
 
-`docs/adr/0003-minio-pinned-release.md`:
+`docs/adr/0003-minio-built-from-source.md`:
 ```markdown
-# ADR 0003: Pin an archived MinIO release
+# ADR 0003: Build a pinned MinIO release from source
 
 - Status: accepted
 - Date: 2026-10-07
 
 ## Context
-MinIO's community edition stopped publishing new pre-built binaries and images
-in late 2025. The lab needs S3 Object Lock, versioning and bucket replication.
+The lab needs S3 Object Lock, versioning and bucket replication; MinIO provides
+all three. MinIO's community edition is archived: the `minio/minio` Docker Hub
+repository no longer exists and `dl.min.io` answers `410 Gone` for every
+community release, including the archive. The source repositories and their
+release tags are still available on GitHub (read-only).
 
 ## Decision
-Pin `minio` and `mc` to archived releases from `dl.min.io/.../archive/`
-(`RELEASE.2024-10-13T13-34-11Z`, `RELEASE.2024-10-08T09-37-26Z`), verified by
-their published SHA-256 sums. The same server tag is used by integration tests.
+Build `minio` (`RELEASE.2024-10-13T13-34-11Z`) and `mc`
+(`RELEASE.2024-10-08T09-37-26Z`) from their upstream tags in
+`images/minio/Dockerfile`. Each tag is checked against a pinned commit SHA, so a
+re-pointed tag fails the build. The resulting image `disavery/minio:local` is
+used by the integration tests; the toolbox copies both binaries from it, and
+Ansible copies them from the toolbox to the nodes.
+
+Alternatives considered: the maintained `pgsty` fork (gets security fixes, but
+is a fast-moving third party that was being renamed at the time) and replacing
+MinIO with another Object Lock-capable store such as RustFS or Ceph RGW (a
+larger design change with unproven compliance-mode behaviour in this lab).
 
 ## Consequences
-- Reproducible builds; no dependency on future MinIO distribution policy.
+- Reproducible builds with no dependency on MinIO's distribution policy; the
+  only external inputs are the Git tags and the Go toolchain image.
+- The first build takes a few minutes; Docker's layer cache makes later ones
+  instant. CI must build the image before integration tests.
 - No security fixes after the pinned date — acceptable for an isolated lab.
-- If the archive disappears, alternatives with Object Lock support must be
-  evaluated (e.g. Ceph RGW); the S3 API surface used here is standard.
+- If the GitHub repositories disappear, switch to a fork or another
+  Object Lock-capable store; the S3 API surface used here is standard.
 ```
 
 - [ ] **Step 7: Verify, including the immutability guarantees**
@@ -3722,7 +3834,7 @@ Expected: default retention `COMPLIANCE 14 days`; `writer denied: ok`; `root den
 - [ ] **Step 8: Commit**
 
 ```bash
-git add infra/ansible docs/adr/0003-minio-pinned-release.md
+git add infra/ansible docs/adr/0003-minio-built-from-source.md
 git commit -m "feat: add MinIO role with immutable vault and replication"
 ```
 
@@ -3736,16 +3848,16 @@ git commit -m "feat: add MinIO role with immutable vault and replication"
 - Modify: `infra/ansible/playbooks/site.yml`
 
 **Interfaces:**
-- Consumes: `secrets.postgres.*`, `secrets.minio.vault_writer_*`, `secrets.pgbackrest.repo2_cipher_pass`; vault buckets from Task 12; group vars `pg_version`, `pgbackrest_stanza`, `wan_subnet`, `disavery_ca_path`.
+- Consumes: `secrets.postgres.*`, `secrets.minio.vault_writer_*`, `secrets.pgbackrest.repo2_cipher_pass`; vault buckets from Task 12; group vars `pg_version`, `pgbackrest_stanza`, `wan_subnet`, `disavery_ca_path`; host var `zone_subnet` (Terraform inventory).
 - Produces: on `db-<site>`: PostgreSQL 16 cluster `16/main` with data checksums, listening on all interfaces; database `docsvc` owned by role `docsvc`; role `replicator` (REPLICATION); extension `amcheck` in `docsvc`; WAL archiving through pgBackRest stanza `main` to repo1 (`/var/lib/pgbackrest`, posix) and repo2 (`s3://pgbackrest/repo` on the vault, encrypted); at least one full backup in each repo; systemd timers `pgbackrest-full.timer` (daily 01:00) and `pgbackrest-incr.timer` (hourly), each backing up both repos. Service name `postgresql@16-main` (plan 3 stops/promotes it).
 
 - [ ] **Step 1: Write the postgres role**
 
 `infra/ansible/roles/postgres/defaults/main.yml`:
 ```yaml
-pg_conf_dir: "/etc/postgresql/{{ pg_version }}/main"
-pg_service: "postgresql@{{ pg_version }}-main"
-pg_archive_timeout: 30
+postgres_conf_dir: "/etc/postgresql/{{ pg_version }}/main"
+postgres_service: "postgresql@{{ pg_version }}-main"
+postgres_archive_timeout: 30
 postgres_app_db: docsvc
 postgres_app_user: docsvc
 ```
@@ -3754,12 +3866,12 @@ postgres_app_user: docsvc
 ```yaml
 - name: Restart PostgreSQL
   ansible.builtin.systemd_service:
-    name: "{{ pg_service }}"
+    name: "{{ postgres_service }}"
     state: restarted
 
 - name: Reload PostgreSQL
   ansible.builtin.systemd_service:
-    name: "{{ pg_service }}"
+    name: "{{ postgres_service }}"
     state: reloaded
 ```
 
@@ -3774,7 +3886,7 @@ wal_keep_size = '256MB'
 hot_standby = on
 archive_mode = on
 archive_command = 'pgbackrest --stanza={{ pgbackrest_stanza }} archive-push %p'
-archive_timeout = {{ pg_archive_timeout }}
+archive_timeout = {{ postgres_archive_timeout }}
 ```
 
 `infra/ansible/roles/postgres/tasks/main.yml`:
@@ -3797,6 +3909,13 @@ archive_timeout = {{ pg_archive_timeout }}
     name: postgresql-common
     update_cache: "{{ pgdg_repo.changed }}"
 
+# createcluster.conf includes this directory, but the package does not create it.
+- name: Create the createcluster.d directory
+  ansible.builtin.file:
+    path: /etc/postgresql-common/createcluster.d
+    state: directory
+    mode: "0755"
+
 - name: Create new clusters with data checksums
   ansible.builtin.copy:
     content: "initdb_options = '--data-checksums'\n"
@@ -3813,24 +3932,26 @@ archive_timeout = {{ pg_archive_timeout }}
 - name: Configure PostgreSQL
   ansible.builtin.template:
     src: disavery.conf.j2
-    dest: "{{ pg_conf_dir }}/conf.d/disavery.conf"
+    dest: "{{ postgres_conf_dir }}/conf.d/disavery.conf"
     owner: postgres
     group: postgres
     mode: "0644"
   notify: Restart PostgreSQL
 
+# The app reaches its own site's database over the zone network (Docker DNS
+# resolves db-<site> to the zone address); replication crosses sites over the WAN.
 - name: Allow application and replication connections
   ansible.builtin.blockinfile:
-    path: "{{ pg_conf_dir }}/pg_hba.conf"
+    path: "{{ postgres_conf_dir }}/pg_hba.conf"
     marker: "# {mark} disavery"
     block: |
-      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ wan_subnet }}  scram-sha-256
+      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ zone_subnet }}  scram-sha-256
       host  replication            replicator               {{ wan_subnet }}  scram-sha-256
   notify: Reload PostgreSQL
 
 - name: Start PostgreSQL
   ansible.builtin.systemd_service:
-    name: "{{ pg_service }}"
+    name: "{{ postgres_service }}"
     state: started
     enabled: true
 
@@ -4055,7 +4176,7 @@ Append to `infra/ansible/playbooks/site.yml`:
 Run: `make configure`
 Expected: `failed=0`; `db-a` shows the two "initial full backup" items as changed.
 
-If the repo2 backup or `check` fails with an S3 error mentioning `Content-MD5` / `MissingContentMD5` / `InvalidRequest` (MinIO rejecting writes to a default-retention bucket without an MD5 header), apply this fallback and re-run `make configure`:
+(Not needed with the source-built MinIO: both repos accepted the backup on the first run, 2026-10-07.) If the repo2 backup or `check` fails with an S3 error mentioning `Content-MD5` / `MissingContentMD5` / `InvalidRequest` (MinIO rejecting writes to a default-retention bucket without an MD5 header), apply this fallback and re-run `make configure`:
 
 1. In `infra/ansible/roles/minio/tasks/vault.yml`, create `pgbackrest` with versioning but **without** `--with-lock`, and keep `attachments` locked:
 ```yaml
@@ -4429,6 +4550,15 @@ done
 version=$(mc stat --json "vaultw/attachments/documents/$id" | jq -r .versionID)
 [[ -n $version && $version != null ]] || fail "attachment was not replicated to the vault"
 
+step "replica is locked in compliance mode by the sweeper"
+mode=""
+for _ in $(seq 1 90); do
+  mode=$(mc retention info --json --version-id "$version" "vaultroot/attachments/documents/$id" | jq -r .mode)
+  [[ $mode == COMPLIANCE ]] && break
+  sleep 1
+done
+[[ $mode == COMPLIANCE ]] || fail "replica still has retention mode '$mode'"
+
 step "production credentials cannot destroy vault versions"
 if mc rm --version-id "$version" "vaultw/attachments/documents/$id" >/dev/null 2>&1; then
   fail "production writer deleted a vault version"
@@ -4459,6 +4589,8 @@ destroy: down ## Remove everything, including secrets, escrow and the toolbox
 ```
 
 - [ ] **Step 3: Run from scratch**
+
+(Executed as `make down && make up` during implementation: CLAUDE.md forbids running `make destroy` unless the user asks.)
 
 ```bash
 make destroy || true
@@ -4498,6 +4630,8 @@ jobs:
       - name: Line endings are LF
         run: test -z "$(git ls-files --eol | grep -v 'i/lf' | grep -v 'i/-text')"
       - run: go vet ./...
+      - name: Build the MinIO image used by integration tests (ADR 0003)
+        run: make minio-image
       - run: go test -race ./...
       - uses: golangci/golangci-lint-action@v8
         with:
@@ -4558,7 +4692,10 @@ make down    # remove the lab containers (keeps secrets)
 make destroy # remove everything, including secrets and the escrow volume
 ```
 
-`make up` is idempotent; running it again changes nothing.
+`make up` is idempotent; running it again changes nothing. It takes about
+3 minutes with images cached; the first run also builds MinIO from source,
+since MinIO no longer publishes community builds
+([ADR 0003](docs/adr/0003-minio-built-from-source.md)).
 
 Secrets are generated once into the `disavery-secrets` volume, encrypted with
 SOPS/age; the age key is escrowed to the separate `disavery-escrow` volume.

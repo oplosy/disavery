@@ -1,0 +1,13 @@
+{
+	admin off
+	auto_https disable_redirects
+}
+
+docs.disavery.test:443 {
+	tls /etc/caddy/docs.crt /etc/caddy/docs.key
+	reverse_proxy ${upstream} {
+		health_uri /readyz
+		health_interval 2s
+		fail_duration 5s
+	}
+}

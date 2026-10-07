@@ -1,5 +1,5 @@
-pg_conf_dir: "/etc/postgresql/{{ pg_version }}/main"
-pg_service: "postgresql@{{ pg_version }}-main"
-pg_archive_timeout: 30
+postgres_conf_dir: "/etc/postgresql/{{ pg_version }}/main"
+postgres_service: "postgresql@{{ pg_version }}-main"
+postgres_archive_timeout: 30
 postgres_app_db: docsvc
 postgres_app_user: docsvc

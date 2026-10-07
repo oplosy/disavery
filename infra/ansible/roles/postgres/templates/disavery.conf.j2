@@ -7,4 +7,4 @@ wal_keep_size = '256MB'
 hot_standby = on
 archive_mode = on
 archive_command = 'pgbackrest --stanza={{ pgbackrest_stanza }} archive-push %p'
-archive_timeout = {{ pg_archive_timeout }}
+archive_timeout = {{ postgres_archive_timeout }}

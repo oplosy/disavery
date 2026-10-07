@@ -39,7 +39,7 @@
 - name: Configure PostgreSQL
   ansible.builtin.template:
     src: disavery.conf.j2
-    dest: "{{ pg_conf_dir }}/conf.d/disavery.conf"
+    dest: "{{ postgres_conf_dir }}/conf.d/disavery.conf"
     owner: postgres
     group: postgres
     mode: "0644"
@@ -47,7 +47,7 @@
 
 - name: Allow application and replication connections
   ansible.builtin.blockinfile:
-    path: "{{ pg_conf_dir }}/pg_hba.conf"
+    path: "{{ postgres_conf_dir }}/pg_hba.conf"
     marker: "# {mark} disavery"
     block: |
       host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ wan_subnet }}  scram-sha-256
@@ -56,7 +56,7 @@
 
 - name: Start PostgreSQL
   ansible.builtin.systemd_service:
-    name: "{{ pg_service }}"
+    name: "{{ postgres_service }}"
     state: started
     enabled: true
 

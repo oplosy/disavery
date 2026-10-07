@@ -3812,9 +3812,9 @@ git commit -m "feat: add MinIO role with immutable vault and replication"
 
 `infra/ansible/roles/postgres/defaults/main.yml`:
 ```yaml
-pg_conf_dir: "/etc/postgresql/{{ pg_version }}/main"
-pg_service: "postgresql@{{ pg_version }}-main"
-pg_archive_timeout: 30
+postgres_conf_dir: "/etc/postgresql/{{ pg_version }}/main"
+postgres_service: "postgresql@{{ pg_version }}-main"
+postgres_archive_timeout: 30
 postgres_app_db: docsvc
 postgres_app_user: docsvc
 ```
@@ -3823,12 +3823,12 @@ postgres_app_user: docsvc
 ```yaml
 - name: Restart PostgreSQL
   ansible.builtin.systemd_service:
-    name: "{{ pg_service }}"
+    name: "{{ postgres_service }}"
     state: restarted
 
 - name: Reload PostgreSQL
   ansible.builtin.systemd_service:
-    name: "{{ pg_service }}"
+    name: "{{ postgres_service }}"
     state: reloaded
 ```
 
@@ -3843,7 +3843,7 @@ wal_keep_size = '256MB'
 hot_standby = on
 archive_mode = on
 archive_command = 'pgbackrest --stanza={{ pgbackrest_stanza }} archive-push %p'
-archive_timeout = {{ pg_archive_timeout }}
+archive_timeout = {{ postgres_archive_timeout }}
 ```
 
 `infra/ansible/roles/postgres/tasks/main.yml`:
@@ -3889,7 +3889,7 @@ archive_timeout = {{ pg_archive_timeout }}
 - name: Configure PostgreSQL
   ansible.builtin.template:
     src: disavery.conf.j2
-    dest: "{{ pg_conf_dir }}/conf.d/disavery.conf"
+    dest: "{{ postgres_conf_dir }}/conf.d/disavery.conf"
     owner: postgres
     group: postgres
     mode: "0644"
@@ -3897,7 +3897,7 @@ archive_timeout = {{ pg_archive_timeout }}
 
 - name: Allow application and replication connections
   ansible.builtin.blockinfile:
-    path: "{{ pg_conf_dir }}/pg_hba.conf"
+    path: "{{ postgres_conf_dir }}/pg_hba.conf"
     marker: "# {mark} disavery"
     block: |
       host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ wan_subnet }}  scram-sha-256
@@ -3906,7 +3906,7 @@ archive_timeout = {{ pg_archive_timeout }}
 
 - name: Start PostgreSQL
   ansible.builtin.systemd_service:
-    name: "{{ pg_service }}"
+    name: "{{ postgres_service }}"
     state: started
     enabled: true
 

@@ -1,0 +1,56 @@
+- name: Configure PostgreSQL
+  ansible.builtin.template:
+    src: disavery.conf.j2
+    dest: "{{ postgres_conf_dir }}/conf.d/disavery.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart PostgreSQL
+
+# The app reaches its own site's database over the zone network (Docker DNS
+# resolves db-<site> to the zone address). Replication and pg_rewind cross
+# sites over the WAN as replicator.
+- name: Allow application and replication connections
+  ansible.builtin.blockinfile:
+    path: "{{ postgres_conf_dir }}/pg_hba.conf"
+    marker: "# {mark} disavery"
+    block: |
+      host  {{ postgres_app_db }}  {{ postgres_app_user }}  {{ zone_subnet }}  scram-sha-256
+      host  replication            replicator               {{ wan_subnet }}  scram-sha-256
+      host  postgres               replicator               {{ wan_subnet }}  scram-sha-256
+  notify: Reload PostgreSQL
+
+# Replication, pg_basebackup and pg_rewind authenticate as replicator through
+# this file, so no runbook or recovery config holds the password.
+- name: Let PostgreSQL authenticate as replicator to other sites
+  ansible.builtin.copy:
+    content: "*:5432:*:replicator:{{ secrets.postgres.replication_password }}\n"
+    dest: /var/lib/postgresql/.pgpass
+    owner: postgres
+    group: postgres
+    mode: "0600"
+  no_log: true
+
+# After crash recovery, PostgreSQL 16's checkpointer sleeps for a whole
+# checkpoint_timeout before it honours archive_timeout again, so WAL can go
+# unarchived for minutes and RPO silently grows. A checkpoint right after
+# start wakes it (ADR 0005).
+- name: Create the PostgreSQL unit drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/postgresql@.service.d
+    state: directory
+    mode: "0755"
+
+- name: Checkpoint after every start so archive_timeout applies at once
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (role postgres); see docs/adr/0005-checkpoint-after-start.md.
+      [Service]
+      # Never fatal: the cluster must stay up even if the checkpoint fails.
+      ExecStartPost=-/usr/bin/timeout 600 /bin/sh -c 'until pg_isready -q; do sleep 0.2; done; runuser -u postgres -- psql -XAtqc CHECKPOINT'
+    dest: /etc/systemd/system/postgresql@.service.d/disavery.conf
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Load the unit drop-in now
+  ansible.builtin.meta: flush_handlers

@@ -7,3 +7,7 @@
   ansible.builtin.systemd_service:
     name: "{{ postgres_service }}"
     state: reloaded
+
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true

@@ -1,0 +1,14 @@
+[Unit]
+Description=Prometheus PostgreSQL exporter
+After=postgresql@{{ pg_version }}-main.service
+
+[Service]
+User=postgres_exporter
+# Peer authentication on the local socket; the role has pg_monitor only.
+Environment="DATA_SOURCE_NAME=host=/var/run/postgresql user=postgres_exporter dbname=postgres sslmode=disable"
+ExecStart=/usr/local/bin/postgres_exporter --web.listen-address=:9187
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

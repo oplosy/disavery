@@ -1,0 +1,7 @@
+# Prometheus picks the file up by itself (file_sd); no restart, so firing
+# alerts resolve normally after a repoint.
+- name: Publish the database scrape targets
+  ansible.builtin.template:
+    src: postgres.json.j2
+    dest: /monitoring/postgres.json
+    mode: "0644"

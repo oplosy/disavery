@@ -42,12 +42,52 @@
   changed_when: false
   failed_when: false
 
+# This mc release cannot list remote targets, so a rule's priority names its
+# target: 1 is the vault, 2 the other site's store (warm standby only).
+- name: Index replication rules by priority
+  ansible.builtin.set_fact:
+    minio_rules: >-
+      {{ ((site_replication.stdout_lines if site_replication.rc == 0 else []) | map('from_json')
+         | map(attribute='rule') | items2dict(key_name='Priority', value_name='ID')) }}
+
 - name: Replicate attachments to the vault
   ansible.builtin.command: >-
     mc replicate add local/attachments
     --remote-bucket "https://{{ secrets.minio.vault_writer_access_key }}:{{ secrets.minio.vault_writer_secret_key }}@vault:9000/attachments"
     --replicate "delete-marker,existing-objects"
     --priority 1
-  when: site_replication.rc != 0 or 'Enabled' not in site_replication.stdout
+  when: minio_replicate | bool and 1 not in minio_rules
   changed_when: true
   no_log: true
+
+- name: Replicate attachments to the standby site
+  ansible.builtin.command: >-
+    mc replicate add local/attachments
+    --remote-bucket "http://{{ secrets.minio.site_root_user }}:{{ secrets.minio.site_root_password }}@{{ minio_standby_store }}:9000/attachments"
+    --replicate "delete-marker,existing-objects"
+    --priority 2
+  when: minio_replicate | bool and minio_standby_store != "" and 2 not in minio_rules
+  changed_when: true
+  no_log: true
+
+- name: Stop replicating to a site that is no longer a standby
+  ansible.builtin.command: mc replicate rm --id {{ minio_rules[2] }} local/attachments
+  when: minio_standby_store == "" and 2 in minio_rules
+  changed_when: true
+
+# A new standby store gets the existing attachments here: MinIO replicates
+# existing objects only slowly, through its background scanner.
+- name: Seed the standby store from the active site's store
+  when: minio_seed_from != ""
+  block:
+    - name: Point mc at the active site's store
+      ansible.builtin.command: >-
+        mc alias set seed http://{{ minio_seed_from }}:9000
+        {{ secrets.minio.site_root_user }} {{ secrets.minio.site_root_password }}
+      changed_when: false
+      no_log: true
+
+    - name: Copy the attachments the standby lacks
+      ansible.builtin.command: mc mirror --overwrite seed/attachments local/attachments
+      register: minio_seed
+      changed_when: "'->' in minio_seed.stdout"

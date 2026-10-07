@@ -5,8 +5,12 @@ SHELL := bash
 help: ## Show available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
+.PHONY: minio-image
+minio-image: ## Build MinIO and mc from pinned sources
+	docker build -t disavery/minio:local images/minio
+
 .PHONY: test
-test: ## Run all Go tests (integration tests need Docker)
+test: minio-image ## Run all Go tests (integration tests need Docker)
 	go test ./...
 
 .PHONY: test-short

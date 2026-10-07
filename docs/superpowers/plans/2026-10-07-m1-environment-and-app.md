@@ -38,6 +38,18 @@ Note: the spec lists monitoring in milestone 5, but S1's `detect` phase needs Al
 - `archive_timeout = 30`.
 - Never commit on `main`; one task = one or more conventional commits on the feature branch. Every commit message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
+## Amendments during implementation
+
+- **MinIO is built from source (2026-10-07).** MinIO no longer serves community
+  artifacts: the `minio/minio` Docker Hub repository is gone and
+  `dl.min.io/.../archive/` answers `410 Gone`. The pinned releases
+  (`minio RELEASE.2024-10-13T13-34-11Z`, `mc RELEASE.2024-10-08T09-37-26Z`) are
+  now built from their upstream Git tags (commit-verified) by
+  `images/minio/Dockerfile` into `disavery/minio:local` (`make minio-image`).
+  Integration tests use that image; the toolbox copies `minio` and `mc` from it;
+  the Ansible MinIO role copies the binaries from the toolbox to the nodes
+  instead of downloading them. ADR 0003 records the decision.
+
 ## Review Focus
 
 1. **Windows checkout line endings** — with `core.autocrlf=true`, shell scripts and templates would reach Linux containers with CRLF and fail with `$'\r': command not found`. Expect every text file to be LF in the working tree. Pinned in Task 1 (Step 6) and in CI (Task 15).
@@ -716,7 +728,7 @@ func startMinIO(t *testing.T) env {
 		t.Skip("integration test: needs Docker")
 	}
 	ctx := context.Background()
-	ctr, err := tcminio.Run(ctx, "minio/minio:RELEASE.2024-10-13T13-34-11Z")
+	ctr, err := tcminio.Run(ctx, "disavery/minio:local") // built by `make minio-image`
 	testcontainers.CleanupContainer(t, ctr)
 	if err != nil {
 		t.Fatalf("start minio: %v", err)

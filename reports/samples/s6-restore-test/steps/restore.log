@@ -1,0 +1,99 @@
+# step restore (run) in phase recover
+# start 2026-10-07T14:50:51.646787618Z
+# attempt 1
+
+PLAY [Prepare the restore node] ************************************************
+
+TASK [Wait for SSH] ************************************************************
+ok: [restore]
+
+TASK [Load SOPS secrets] *******************************************************
+ok: [restore]
+
+TASK [Gather facts] ************************************************************
+ok: [restore]
+
+PLAY [Restore] *****************************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [restore]
+
+TASK [base : Install base packages] ********************************************
+changed: [restore]
+
+TASK [base : Trust the disavery CA] ********************************************
+changed: [restore]
+
+TASK [base : Apply CA changes now] *********************************************
+
+RUNNING HANDLER [base : Update CA certificates] ********************************
+changed: [restore]
+
+TASK [restore : Check the restore parameters] **********************************
+ok: [restore] => 
+    changed: false
+    msg: All assertions passed
+
+TASK [Install PostgreSQL] ******************************************************
+included: postgres for restore
+
+TASK [postgres : Add the PGDG signing key] *************************************
+changed: [restore]
+
+TASK [postgres : Add the PGDG repository] **************************************
+changed: [restore]
+
+TASK [postgres : Install postgresql-common] ************************************
+changed: [restore]
+
+TASK [postgres : Create the createcluster.d directory] *************************
+changed: [restore]
+
+TASK [postgres : Create new clusters with data checksums] **********************
+changed: [restore]
+
+TASK [postgres : Install PostgreSQL] *******************************************
+changed: [restore]
+
+TASK [Install and configure pgBackRest] ****************************************
+included: pgbackrest for restore
+
+TASK [pgbackrest : Install pgBackRest] *****************************************
+changed: [restore]
+
+TASK [pgbackrest : Remove the legacy configuration file] ***********************
+changed: [restore]
+
+TASK [pgbackrest : Create pgBackRest directories] ******************************
+changed: [restore] => (item=/etc/pgbackrest)
+ok: [restore] => (item=/var/lib/pgbackrest)
+ok: [restore] => (item=/var/spool/pgbackrest)
+ok: [restore] => (item=/var/log/pgbackrest)
+
+TASK [pgbackrest : Configure pgBackRest] ***************************************
+changed: [restore]
+
+TASK [restore : Never archive from the restored cluster] ***********************
+changed: [restore]
+
+TASK [restore : Stop PostgreSQL] ***********************************************
+ok: [restore]
+
+TASK [restore : Restore the backup set to the target time] *********************
+[WARNING]: Module remote_tmp /var/lib/postgresql/.ansible/tmp did not exist and
+was created with a mode of 0700, this may cause issues when running as another
+user. To avoid this, create the remote_tmp dir with the correct permissions
+manually
+changed: [restore]
+
+TASK [restore : Start PostgreSQL] **********************************************
+changed: [restore]
+
+TASK [restore : Wait until recovery reaches the target and the cluster is promoted] ***
+FAILED - RETRYING: [restore]: Wait until recovery reaches the target and the cluster is promoted (120 retries left).
+ok: [restore]
+
+PLAY RECAP *********************************************************************
+restore                    : ok=25   changed=16   unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+# end 2026-10-07T14:51:50.090887375Z ok

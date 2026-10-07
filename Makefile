@@ -22,8 +22,9 @@ test-short: ## Run unit tests only
 	go test -short ./...
 
 .PHONY: lint
-lint: ## Run golangci-lint
+lint: ## Run golangci-lint and validate runbooks
 	golangci-lint run
+	go run ./cmd/disavery runbook lint
 
 TB := docker compose exec -T toolbox
 
@@ -72,3 +73,7 @@ destroy: down ## Remove everything, including secrets, escrow and the toolbox
 canary: build ## Start the canary writer (restarted so it runs the current binary)
 	docker compose up -d canary
 	docker compose restart canary
+
+.PHONY: drill
+drill: ## Run a drill: make drill SCENARIO=s6-restore-test [TIER=warm-standby] [ARGS=--yes]
+	$(TB) build/disavery drill run $(SCENARIO) $(if $(TIER),--tier $(TIER)) $(ARGS)

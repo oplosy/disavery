@@ -34,3 +34,10 @@ func TestUsageErrors(t *testing.T) {
 		t.Fatalf("help: %d %q", code, out)
 	}
 }
+
+func TestRunbookLintRepository(t *testing.T) {
+	code, out, errOut := runCLI("runbook", "lint", "--root", "../..")
+	if code != 0 || !strings.Contains(out, "ok   ") {
+		t.Fatalf("exit %d\n%s%s", code, out, errOut)
+	}
+}

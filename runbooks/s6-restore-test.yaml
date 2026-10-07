@@ -1,0 +1,39 @@
+id: s6-restore-test
+description: >-
+  Restore a random backup set from the immutable vault to a random point in
+  time on an isolated node, then prove the restore is exact and consistent.
+vars:
+  repo: "2"
+phases:
+  - name: recover
+    steps:
+      - id: pick-point
+        run: build/disavery restore-point --repo {{.repo}} --seed {{.seed}}
+        capture: point
+        timeout: 1m
+      - id: provision
+        run: terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve -var restore_enabled=true
+        timeout: 5m
+      - id: restore
+        run: >-
+          ansible-playbook infra/ansible/playbooks/restore.yml
+          -e '{"restore_repo": {{.repo}}, "restore_set": "{{.point.set}}", "restore_target": "{{.point.target}}"}'
+        timeout: 20m
+  - name: verify
+    steps:
+      - id: pitr
+        check: pitr
+        with: { host: restore, target: "{{.point.target}}" }
+      - id: integrity
+        check: amcheck
+        with: { host: restore }
+      - id: rules
+        check: business-rules
+        with: { host: restore, as_of: "{{.point.target}}", compare_host: "{{.db_host}}" }
+      - id: attachments
+        check: db-object-consistency
+        with: { host: restore, store: vault, as_of: "{{.point.target}}" }
+cleanup:
+  - id: remove-restore-node
+    run: terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve -var restore_enabled=false
+    timeout: 5m

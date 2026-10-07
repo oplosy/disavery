@@ -7634,7 +7634,7 @@ phases:
         capture: point
         timeout: 1m
       - id: provision
-        run: terraform -chdir=infra/terraform/envs/local apply -input=false -auto-approve -var restore_enabled=true
+        run: terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve -var restore_enabled=true
         timeout: 5m
       - id: restore
         run: >-
@@ -7657,7 +7657,7 @@ phases:
         with: { host: restore, store: vault, as_of: "{{.point.target}}" }
 cleanup:
   - id: remove-restore-node
-    run: terraform -chdir=infra/terraform/envs/local apply -input=false -auto-approve -var restore_enabled=false
+    run: terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve -var restore_enabled=false
     timeout: 5m
 ```
 
@@ -7665,6 +7665,7 @@ cleanup:
 
 Append to `cmd/disavery/main_test.go`:
 ```go
+
 func TestRunbookLintRepository(t *testing.T) {
 	code, out, errOut := runCLI("runbook", "lint", "--root", "../..")
 	if code != 0 || !strings.Contains(out, "ok   ") {

@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "run_id": "20261007T145047Z-s6-restore-test",
+  "scenario": "s6-restore-test",
+  "description": "Restore a random backup set from the immutable vault to a random point in time on an isolated node, then prove the restore is exact and consistent.",
+  "env": "drill",
+  "result": "PASS",
+  "seed": 1791384647025434729,
+  "started_at": "2026-10-07T14:50:47.070574227Z",
+  "finished_at": "2026-10-07T14:51:55.279118281Z",
+  "data": {
+    "db_host": "db-a",
+    "env": "drill",
+    "point": {
+      "candidates": 3,
+      "repo": 2,
+      "seed": 1791384647025434600,
+      "set": "20261007-125318F",
+      "target": "2026-10-07 14:50:10.933+00",
+      "target_time": "2026-10-07T14:50:10.933Z",
+      "type": "full",
+      "window_end": "2026-10-07T14:50:21.429426944Z",
+      "window_start": "2026-10-07T14:21:25.936648484Z"
+    },
+    "repo": "2",
+    "report_dir": "reports/20261007T145047Z-s6-restore-test",
+    "run_id": "20261007T145047Z-s6-restore-test",
+    "scenario": "s6-restore-test",
+    "seed": "1791384647025434729",
+    "tier": ""
+  },
+  "measurements": [
+    {
+      "name": "recovery_time",
+      "target_seconds": 900,
+      "actual_seconds": 63.94008326,
+      "met": true
+    }
+  ],
+  "preflight": [
+    {
+      "name": "app-ready",
+      "status": "pass",
+      "detail": "https://docs.disavery.test/readyz answered 200"
+    },
+    {
+      "name": "backups-fresh",
+      "status": "pass",
+      "detail": "newest backups: repo1 incr 30m35s ago, repo2 incr 30m34s ago"
+    },
+    {
+      "name": "wal-archive",
+      "status": "pass",
+      "detail": "last WAL segment archived 16s ago"
+    },
+    {
+      "name": "canary-writing",
+      "status": "pass",
+      "detail": "last acknowledged canary write 370ms ago (seq 1791384609234)"
+    },
+    {
+      "name": "vault-reachable",
+      "status": "pass",
+      "detail": "https://vault:9000/minio/health/live answered 200"
+    },
+    {
+      "name": "escrow-present",
+      "status": "pass",
+      "detail": "/escrow/age-keys.txt matches the current age key"
+    }
+  ],
+  "phases": [
+    {
+      "name": "recover",
+      "start": "2026-10-07T14:50:47.579491955Z",
+      "end": "2026-10-07T14:51:50.091686312Z"
+    },
+    {
+      "name": "verify",
+      "start": "2026-10-07T14:51:50.091689789Z",
+      "end": "2026-10-07T14:51:51.515973703Z"
+    }
+  ],
+  "steps": [
+    {
+      "id": "pick-point",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:50:47.579493213Z",
+      "end": "2026-10-07T14:50:48.063331421Z"
+    },
+    {
+      "id": "provision",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:50:48.063885131Z",
+      "end": "2026-10-07T14:50:51.646277493Z"
+    },
+    {
+      "id": "restore",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:50:51.646787618Z",
+      "end": "2026-10-07T14:51:50.091159322Z"
+    },
+    {
+      "id": "pitr",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:51:50.091692279Z",
+      "end": "2026-10-07T14:51:50.31714786Z",
+      "check": {
+        "name": "pitr",
+        "status": "pass",
+        "summary": "restore matches 2026-10-07T14:50:10.933Z: all 119 writes acknowledged before it are present, none of the 98 sent after it",
+        "metrics": {
+          "missing": 0,
+          "must_exist": 119,
+          "must_not_exist": 98,
+          "newest_write_before_target_seconds": 0.726380144,
+          "unexpected": 0
+        }
+      }
+    },
+    {
+      "id": "integrity",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:51:50.317588761Z",
+      "end": "2026-10-07T14:51:50.601643693Z",
+      "check": {
+        "name": "amcheck",
+        "status": "pass",
+        "summary": "pg_amcheck found no corruption in docsvc (heap and all indexes)"
+      }
+    },
+    {
+      "id": "rules",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:51:50.602069318Z",
+      "end": "2026-10-07T14:51:51.262021705Z",
+      "check": {
+        "name": "business-rules",
+        "status": "pass",
+        "summary": "531 documents and 1736 canary writes; every business rule holds; document counts match production at the target",
+        "metrics": {
+          "canary_writes": 1736,
+          "documents": 531,
+          "documents_before_target": 531,
+          "production_documents_before_target": 531,
+          "rule_violations": 0
+        }
+      }
+    },
+    {
+      "id": "attachments",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:51:51.26269076Z",
+      "end": "2026-10-07T14:51:51.515548681Z",
+      "check": {
+        "name": "db-object-consistency",
+        "status": "pass",
+        "summary": "all 531 documents have their attachment in vault; 0 orphan object(s)",
+        "metrics": {
+          "documents": 531,
+          "missing": 0,
+          "objects": 659,
+          "orphans": 0
+        }
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "remove-restore-node",
+      "phase": "cleanup",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-07T14:51:51.515980318Z",
+      "end": "2026-10-07T14:51:55.277644862Z"
+    }
+  ],
+  "availability": {
+    "probes": 136,
+    "failed": 0
+  }
+}

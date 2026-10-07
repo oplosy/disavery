@@ -4,8 +4,9 @@ Disaster recovery architecture for PostgreSQL that proves recovery instead of
 assuming it: automated backups to two repositories (one immutable), measured
 RPO/RTO drills, pilot light vs. warm standby, failover and failback.
 
-> Status: milestone 1 of 5 — the lab environment, the protected application and
-> backups. Drills arrive in milestone 2. Design: [spec](docs/superpowers/specs/2026-10-07-disavery-dr-design.md).
+> Status: milestone 2 of 5 — the lab, the protected application, backups to two
+> repositories and the drill CLI with the random restore test (S6). Site loss
+> and failover arrive in milestone 3. Design: [spec](docs/superpowers/specs/2026-10-07-disavery-dr-design.md).
 
 ## What runs
 
@@ -36,6 +37,23 @@ since MinIO no longer publishes community builds
 
 Secrets are generated once into the `disavery-secrets` volume, encrypted with
 SOPS/age; the age key is escrowed to the separate `disavery-escrow` volume.
+
+## Drills
+
+```bash
+make drill SCENARIO=s6-restore-test   # random backup + random PITR target, restored and verified
+```
+
+A drill checks the lab is healthy, runs its [runbook](docs/runbooks.md) while a
+prober watches production, and writes `reports/<run>/report.md` (target vs.
+actual, phase timings, verification, timeline) plus `report.json` and per-step
+logs. A canary service journals one acknowledged write per second, so data loss
+and point-in-time accuracy are measured, not assumed. Targets and thresholds are
+in the [BIA](docs/bia.md). Example: [a passing restore test](reports/samples/s6-restore-test/report.md).
+
+```bash
+docker compose exec toolbox build/disavery report trend   # history of all drills
+```
 
 ## Development
 

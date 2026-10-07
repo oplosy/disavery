@@ -1,0 +1,15 @@
+# step pick-point (run) in phase recover
+# start 2026-10-07T14:50:47.579493213Z
+# attempt 1
+{
+  "repo": 2,
+  "set": "20261007-125318F",
+  "type": "full",
+  "target": "2026-10-07 14:50:10.933+00",
+  "target_time": "2026-10-07T14:50:10.933Z",
+  "window_start": "2026-10-07T14:21:25.936648484Z",
+  "window_end": "2026-10-07T14:50:21.429426944Z",
+  "candidates": 3,
+  "seed": 1791384647025434729
+}
+# end 2026-10-07T14:50:48.063194275Z ok

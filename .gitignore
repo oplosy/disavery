@@ -1,0 +1,6 @@
+/build/
+/infra/ansible/inventory/hosts.yml
+**/.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfstate.d/

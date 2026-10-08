@@ -172,3 +172,29 @@ func TestStoreSync(t *testing.T) {
 		t.Fatalf("in sync: %+v %v", res, err)
 	}
 }
+
+func TestQuery(t *testing.T) {
+	p := verify.Params{With: map[string]string{"host": "db-a", "sql": "SELECT count(*) FROM documents", "want": "28"}}
+	tests := []struct {
+		name string
+		rows fakeSQL
+		want verify.Status
+	}{
+		{"match", fakeSQL{{"28"}}, verify.Pass},
+		{"mismatch", fakeSQL{{"0"}}, verify.Fail},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := verify.Query{SQL: tc.rows}.Run(context.Background(), p)
+			if err != nil || res.Status != tc.want {
+				t.Fatalf("%+v %v", res, err)
+			}
+		})
+	}
+	if _, err := (verify.Query{SQL: fakeSQL{{"1", "2"}}}).Run(context.Background(), p); err == nil {
+		t.Fatal("want an error for more than one value")
+	}
+	if _, err := (verify.Query{SQL: fakeSQL{{"1"}}}).Run(context.Background(), verify.Params{With: map[string]string{"host": "db-a"}}); err == nil {
+		t.Fatal("want an error for missing parameters")
+	}
+}

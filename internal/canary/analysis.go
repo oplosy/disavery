@@ -1,6 +1,7 @@
 package canary
 
 import (
+	"fmt"
 	"sort"
 	"time"
 )
@@ -19,6 +20,9 @@ type RPO struct {
 	LastSurvivor *Entry
 	// Value is Incident minus LastSurvivor's acknowledgement (the spec's
 	// actual RPO), or Incident minus the window start if nothing survived.
+	// A point-in-time rewind (S3) also discards writes acknowledged after the
+	// incident; then Value runs to the newest lost write instead, because all
+	// of that span is data the business lost.
 	Value time.Duration
 	// Lost lists the acknowledged writes after the last survivor that did not
 	// survive: the data this incident lost.
@@ -49,16 +53,20 @@ func LiveRPO(entries []Entry, since, incident, until time.Time, survived func(in
 	if r.LastSurvivor != nil {
 		ref = r.LastSurvivor.Acked
 	}
+	end := incident
 	for _, e := range window {
 		switch {
 		case survived(e.Seq):
 		case e.Acked.After(ref):
 			r.Lost = append(r.Lost, e.Seq)
+			if e.Acked.After(end) {
+				end = e.Acked
+			}
 		case !e.Acked.Before(ref.Add(-AnomalyHorizon)):
 			r.Anomalies = append(r.Anomalies, e.Seq)
 		}
 	}
-	r.Value = max(0, incident.Sub(ref))
+	r.Value = max(0, end.Sub(ref))
 	return r
 }
 
@@ -122,4 +130,26 @@ func CoverageStart(entries []Entry, firstPresent int64) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return entries[i].Acked, true
+}
+
+// Steady returns the journal entries acknowledged in [from, to] and an error
+// if the canary was silent for longer than maxGap anywhere in that window,
+// including at its start and end. Entries must be in ascending seq order.
+func Steady(entries []Entry, from, to time.Time, maxGap time.Duration) ([]Entry, error) {
+	var window []Entry
+	prev := from
+	for _, e := range entries {
+		if e.Acked.Before(from) || e.Acked.After(to) {
+			continue
+		}
+		if gap := e.Acked.Sub(prev); gap > maxGap {
+			return nil, fmt.Errorf("the canary was silent for %s from %s", gap.Round(time.Second), prev.UTC().Format(time.TimeOnly))
+		}
+		window = append(window, e)
+		prev = e.Acked
+	}
+	if gap := to.Sub(prev); gap > maxGap {
+		return nil, fmt.Errorf("the canary was silent for %s from %s", gap.Round(time.Second), prev.UTC().Format(time.TimeOnly))
+	}
+	return window, nil
 }

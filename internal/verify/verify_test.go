@@ -108,8 +108,8 @@ func TestLiveRPOAndRTO(t *testing.T) {
 				t.Errorf("from %d", from)
 			}
 			s := map[int64]bool{}
-			for seq := int64(100); seq <= 103; seq++ { // writes up to 3.05 s survived
-				s[seq] = true
+			for seq := int64(100); seq <= 119; seq++ { // write 104 (4.05 s) was lost
+				s[seq] = seq != 104
 			}
 			return s, nil
 		},
@@ -122,6 +122,36 @@ func TestLiveRPOAndRTO(t *testing.T) {
 	rto, err := verify.LiveRTO{Samples: func() []prober.Sample { return samples }, Target: 2 * time.Second, Streak: 5}.Run(context.Background(), p)
 	if err != nil || rto.Measurements[0].Actual != 3*time.Second || rto.Measurements[0].Met() {
 		t.Fatalf("rto %+v %v", rto, err)
+	}
+}
+
+// TestLiveRTOWaitsForTheStreak pins a false failure found in an S2 drill: the
+// last recovery step repaired the service instantly, verification started
+// before five successful probes existed, and the drill reported that the
+// service never recovered.
+func TestLiveRTOWaitsForTheStreak(t *testing.T) {
+	t0 := time.Date(2026, 10, 8, 11, 0, 0, 0, time.UTC)
+	incident := t0.Add(time.Second)
+	samples := []prober.Sample{{At: t0, OK: true}, {At: incident, OK: false}}
+	calls := 0
+	grow := func() []prober.Sample {
+		calls++
+		if calls > 1 && len(samples) < 7 { // one more successful probe per poll
+			samples = append(samples, prober.Sample{At: incident.Add(time.Duration(len(samples)) * time.Second), OK: true})
+		}
+		return samples
+	}
+	p := verify.Params{Start: t0, Incident: &incident, Now: t0.Add(time.Minute)}
+
+	res, err := verify.LiveRTO{Samples: grow, Target: time.Minute, Streak: 5, Settle: 5 * time.Second, Poll: time.Millisecond}.Run(context.Background(), p)
+	if err != nil || res.Status != verify.Pass || res.Measurements[0].Actual != 2*time.Second {
+		t.Fatalf("with settle: %+v %v", res, err)
+	}
+
+	samples, calls = samples[:2], 0
+	res, err = verify.LiveRTO{Samples: grow, Target: time.Minute, Streak: 5}.Run(context.Background(), p)
+	if err != nil || res.Status != verify.Fail {
+		t.Fatalf("without settle: %+v %v", res, err)
 	}
 }
 

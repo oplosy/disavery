@@ -448,7 +448,7 @@ func (l *LabEnv) PickRestorePoint(ctx context.Context, repo int, seed int64) (re
 	if !ok {
 		return restorepoint.Point{}, errors.New("the canary journal does not cover production")
 	}
-	return restorepoint.Pick(backups, coverage, archived, restorePointMargin, seed)
+	return restorepoint.Pick(backups, coverage, archived, restorePointMargin, nil, seed)
 }
 
 // ProductionChecks verifies production as it is now: integrity, business

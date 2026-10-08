@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -84,8 +85,10 @@ func TestWriterJournalsOnlyAcknowledgedWrites(t *testing.T) {
 		Now: time.Now, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	// The writer is sequential: once the fourth write arrives, the third has
+	// been acknowledged and journaled. Stopping at the third raced with it.
 	go func() {
-		for calls.Load() < 3 {
+		for calls.Load() < 4 {
 			time.Sleep(time.Millisecond)
 		}
 		cancel()
@@ -115,12 +118,20 @@ func TestLiveRPO(t *testing.T) {
 	incident := t0.Add(6 * time.Second)
 	until := t0.Add(time.Minute)
 
-	r := canary.LiveRPO(j, t0, incident, until, upTo(4))
+	// A crash: writes 5 and 6 were lost, the service came back for write 7.
+	r := canary.LiveRPO(j, t0, incident, until, func(s int64) bool { return s <= 4 || s >= 7 })
 	if r.LastSurvivor == nil || r.LastSurvivor.Seq != 4 || r.Value != incident.Sub(j[3].Acked) {
 		t.Fatalf("rpo %+v", r)
 	}
-	if !slices.Equal(r.Lost, []int64{5, 6, 7, 8, 9, 10}) || len(r.Anomalies) != 0 || r.Considered != 10 {
+	if !slices.Equal(r.Lost, []int64{5, 6}) || len(r.Anomalies) != 0 || r.Considered != 10 {
 		t.Fatalf("lost %v anomalies %v considered %d", r.Lost, r.Anomalies, r.Considered)
+	}
+
+	// A point-in-time rewind (S3) also discards writes acknowledged after the
+	// incident: RPO runs to the newest of them.
+	r = canary.LiveRPO(j, t0, incident, until, upTo(4))
+	if r.LastSurvivor.Seq != 4 || r.Value != j[9].Acked.Sub(j[3].Acked) || !slices.Equal(r.Lost, []int64{5, 6, 7, 8, 9, 10}) {
+		t.Fatalf("rewind %+v", r)
 	}
 
 	// Writes 5 lost but 6 survived: an ordering anomaly.
@@ -129,8 +140,8 @@ func TestLiveRPO(t *testing.T) {
 		t.Fatalf("anomaly case %+v", r)
 	}
 
-	// Nothing survived: RPO is the whole window.
-	r = canary.LiveRPO(j, t0, incident, until, set())
+	// Nothing from before the incident survived: RPO is the whole window.
+	r = canary.LiveRPO(j, t0, incident, until, func(s int64) bool { return s >= 7 })
 	if r.LastSurvivor != nil || r.Value != 6*time.Second {
 		t.Fatalf("total loss %+v", r)
 	}
@@ -195,14 +206,34 @@ func TestCoverageStart(t *testing.T) {
 func TestLiveRPOIgnoresEarlierIncidents(t *testing.T) {
 	j := journal(600) // ten minutes of writes, one per second
 	// An earlier drill lost writes 100-130; writes 131-520 survived; this
-	// incident at 9:00 lost everything after write 520 (acked 8:39.1).
-	survived := func(s int64) bool { return (s < 100 || s > 130) && s <= 520 }
+	// incident at 9:00 lost writes 521-540 (acked 8:40.1 to 8:59.1); writes
+	// after it survived.
+	survived := func(s int64) bool { return (s < 100 || s > 130) && (s <= 520 || s > 540) }
 	incident := t0.Add(9 * time.Minute)
 	r := canary.LiveRPO(j, t0, incident, t0.Add(10*time.Minute), survived)
 	if r.LastSurvivor.Seq != 520 || r.Value != incident.Sub(j[519].Acked) {
 		t.Fatalf("rpo %+v", r)
 	}
-	if len(r.Lost) != 80 || r.Lost[0] != 521 || len(r.Anomalies) != 0 {
+	if len(r.Lost) != 20 || r.Lost[0] != 521 || len(r.Anomalies) != 0 {
 		t.Fatalf("lost %d (first %d), anomalies %v", len(r.Lost), r.Lost[0], r.Anomalies)
+	}
+}
+
+func TestSteady(t *testing.T) {
+	j := journal(60) // one write per second, acked at t0+0.1s .. t0+59.1s
+	to := t0.Add(60 * time.Second)
+	w, err := canary.Steady(j, t0.Add(30*time.Second), to, 2*time.Second)
+	if err != nil || len(w) != 30 || w[0].Seq != 31 {
+		t.Fatalf("steady: %d entries, %v", len(w), err)
+	}
+	// A recovery a moment ago: writes 41-50 never happened.
+	gappy := slices.Concat(j[:40], j[50:])
+	if _, err := canary.Steady(gappy, t0.Add(30*time.Second), to, 2*time.Second); err == nil ||
+		!strings.Contains(err.Error(), "silent for 11s from 12:00:39") {
+		t.Fatalf("gap: %v", err)
+	}
+	// Silent now.
+	if _, err := canary.Steady(j[:50], t0.Add(30*time.Second), to, 2*time.Second); err == nil {
+		t.Fatal("want an error when the canary stopped")
 	}
 }

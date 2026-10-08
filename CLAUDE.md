@@ -14,19 +14,21 @@ matters as much as correctness.
 Source of truth:
 
 - Design spec: `docs/superpowers/specs/2026-10-07-disavery-dr-design.md`
-- Current plan (M3 of 5): `docs/superpowers/plans/2026-10-07-m3-site-b-s1-s7.md`
+- Current plan (M4 of 5): `docs/superpowers/plans/2026-10-08-m4-s2-s5.md`
 - Previous plans (shipped): `docs/superpowers/plans/2026-10-07-m1-environment-and-app.md`,
-  `docs/superpowers/plans/2026-10-07-m2-cli-core-and-s6.md`
+  `docs/superpowers/plans/2026-10-07-m2-cli-core-and-s6.md`,
+  `docs/superpowers/plans/2026-10-07-m3-site-b-s1-s7.md`
 
 Read the relevant spec section and plan task before changing anything. If code
 and spec disagree, raise it — don't silently diverge.
 
 ## Status
 
-M1 shipped (PR #2) and M2 shipped (PR #4); see each plan's amendments and
-decisions for deviations from the spec. M3 is implemented on branch
-`feat/m3-site-b` (all 10 plan tasks; S1 and S7 pass on both tiers). Next:
-plan 4. Update this section as milestones ship.
+M1 shipped (PR #2), M2 shipped (PR #4) and M3 shipped (PR #6); see each
+plan's amendments and decisions for deviations from the spec. Plan 4 is
+written and was prototyped on the local branch `wip/m4-prototype` (S2–S5 pass);
+next: implement it on `feat/m4-in-site-incidents`. Update this section as
+milestones ship.
 
 | Milestone | Scope |
 |---|---|

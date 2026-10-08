@@ -77,6 +77,13 @@ if mc rm --version-id "$version" "vaultroot/attachments/documents/$id" >/dev/nul
   fail "a locked version was deleted"
 fi
 
+step "the restore identity reads the vault but cannot write to it"
+mc alias set vaultr https://vault:9000 "$(secret '["minio"]["vault_reader_access_key"]')" "$(secret '["minio"]["vault_reader_secret_key"]')" >/dev/null
+mc stat "vaultr/attachments/documents/$id" >/dev/null || fail "the restore identity cannot read the vault"
+if echo probe | mc pipe vaultr/attachments/smoke-probe >/dev/null 2>&1; then
+  fail "the restore identity wrote to the vault"
+fi
+
 step "canary writes are acknowledged and journaled"
 last=$(tail -n 1 /state/canary/journal.jsonl 2>/dev/null | jq -r .acked)
 [[ -n $last && $last != null ]] || fail "canary journal is empty; is the canary service running?"

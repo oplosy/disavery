@@ -16,3 +16,8 @@ minio_replicate: true
 minio_standby_store: ""
 # Site profile: the active store a standby store copies existing objects from.
 minio_seed_from: ""
+
+# Vault profile: the production identities and their policies (templates/).
+minio_vault_users:
+  - { policy: prod-writer, access_key: "{{ secrets.minio.vault_writer_access_key }}", secret_key: "{{ secrets.minio.vault_writer_secret_key }}" }
+  - { policy: prod-reader, access_key: "{{ secrets.minio.vault_reader_access_key }}", secret_key: "{{ secrets.minio.vault_reader_secret_key }}" }

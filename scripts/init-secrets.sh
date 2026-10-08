@@ -8,7 +8,19 @@ SECRETS=/secrets
 ESCROW=/escrow
 OUT=$SECRETS/local.sops.yaml
 
+rand() { python3 -c 'import secrets; print(secrets.token_hex(24))'; }
+
 if [[ -f $OUT && ${1:-} != --force ]]; then
+  # Secrets introduced after the file was generated are added in place, so an
+  # existing lab gets them without regenerating (and losing) the others.
+  add() {
+    if ! sops --decrypt --extract "$1" "$OUT" >/dev/null 2>&1; then
+      sops set "$OUT" "$1" "\"$2\""
+      echo "added $1"
+    fi
+  }
+  add '["minio"]["vault_reader_access_key"]' vaultreader
+  add '["minio"]["vault_reader_secret_key"]' "$(rand)"
   echo "secrets already exist at $OUT (use --force to regenerate)"
   exit 0
 fi
@@ -33,7 +45,6 @@ step certificate create vault "$tmp/vault.crt" "$tmp/vault.key" \
   --profile leaf --ca "$tmp/ca.crt" --ca-key "$tmp/ca.key" --no-password --insecure \
   --not-after 8760h --san vault
 
-rand() { python3 -c 'import secrets; print(secrets.token_hex(24))'; }
 block() { sed 's/^/    /' "$1"; }
 
 cat > "$tmp/plain.yaml" <<EOF
@@ -49,6 +60,8 @@ minio:
   vault_root_password: $(rand)
   vault_writer_access_key: prodwriter
   vault_writer_secret_key: $(rand)
+  vault_reader_access_key: vaultreader
+  vault_reader_secret_key: $(rand)
 pgbackrest:
   repo2_cipher_pass: $(rand)
 webhook:

@@ -54,7 +54,7 @@ phases:
         timeout: 5m
       - id: build-site-b
         when: "tier == 'pilot-light'"
-        run: ansible-playbook infra/ansible/playbooks/pilot-light.yml -e dr_site={{.to_site}}
+        run: ansible-playbook infra/ansible/playbooks/rebuild-site.yml -e target_site={{.to_site}}
         timeout: 20m
       - id: copy-attachments
         when: "tier == 'pilot-light'"

@@ -27,31 +27,45 @@
   when: "'NoncurrentVersionExpiration' not in item.stdout"
   changed_when: true
 
-- name: Write the production writer policy
+# Two production identities: the writer pushes backups and replicas but may
+# not destroy a version; the reader only restores (S4, ADR 0006).
+- name: Write the vault user policies
   ansible.builtin.template:
-    src: prod-writer.json.j2
-    dest: /etc/minio/prod-writer.json
+    src: "{{ item.policy }}.json.j2"
+    dest: "/etc/minio/{{ item.policy }}.json"
     mode: "0644"
+  loop: "{{ minio_vault_users }}"
+  loop_control:
+    label: "{{ item.policy }}"
 
-- name: Create the production writer policy
-  ansible.builtin.command: mc admin policy create local prod-writer /etc/minio/prod-writer.json
+- name: Create the vault user policies
+  ansible.builtin.command: mc admin policy create local {{ item.policy }} /etc/minio/{{ item.policy }}.json
+  loop: "{{ minio_vault_users }}"
+  loop_control:
+    label: "{{ item.policy }}"
   changed_when: false
 
-- name: Create the production writer user
-  ansible.builtin.command: >-
-    mc admin user add local {{ secrets.minio.vault_writer_access_key }} {{ secrets.minio.vault_writer_secret_key }}
+- name: Create the vault users
+  ansible.builtin.command: mc admin user add local {{ item.access_key }} {{ item.secret_key }}
+  loop: "{{ minio_vault_users }}"
   changed_when: false
   no_log: true
 
-- name: Read the production writer's policies
-  ansible.builtin.command: mc admin user info --json local {{ secrets.minio.vault_writer_access_key }}
-  register: vault_writer_info
+- name: Read the vault users' policies
+  ansible.builtin.command: mc admin user info --json local {{ item.access_key }}
+  loop: "{{ minio_vault_users }}"
+  loop_control:
+    label: "{{ item.access_key }}"
+  register: vault_user_info
   changed_when: false
 
 # Attaching is not idempotent in this mc release (rc 0 every time), so check first.
-- name: Attach the policy to the production writer
-  ansible.builtin.command: mc admin policy attach local prod-writer --user {{ secrets.minio.vault_writer_access_key }}
-  when: "'prod-writer' not in ((vault_writer_info.stdout | from_json).policyName | default('')).split(',')"
+- name: Attach the policies to the vault users
+  ansible.builtin.command: mc admin policy attach local {{ item.item.policy }} --user {{ item.item.access_key }}
+  loop: "{{ vault_user_info.results }}"
+  loop_control:
+    label: "{{ item.item.access_key }}"
+  when: "item.item.policy not in ((item.stdout | from_json).policyName | default('')).split(',')"
   changed_when: true
 
 - name: Install the replica lock sweeper

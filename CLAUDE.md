@@ -25,10 +25,9 @@ and spec disagree, raise it — don't silently diverge.
 ## Status
 
 M1 shipped (PR #2), M2 shipped (PR #4) and M3 shipped (PR #6); see each
-plan's amendments and decisions for deviations from the spec. Plan 4 is
-written and was prototyped on the local branch `wip/m4-prototype` (S2–S5 pass);
-next: implement it on `feat/m4-in-site-incidents`. Update this section as
-milestones ship.
+plan's amendments and decisions for deviations from the spec. M4 is
+implemented on branch `feat/m4-in-site-incidents` (all 7 plan tasks; S2–S5
+pass). Next: plan 5. Update this section as milestones ship.
 
 | Milestone | Scope |
 |---|---|

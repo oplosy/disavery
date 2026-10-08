@@ -25,6 +25,9 @@ func TestUsageErrors(t *testing.T) {
 		{[]string{"drill", "run", "--root", "../.."}, "missing runbook id"},
 		{[]string{"drill", "run", "nope", "extra", "--root", "../.."}, "unexpected arguments"},
 		{[]string{"report"}, "missing report directory"},
+		{[]string{"attachments", "rewind", "--store", "obj-a"}, "--store and --to are required"},
+		{[]string{"attachments", "rewind", "--store", "obj-a", "--to", "yesterday"}, `cannot parse time "yesterday"`},
+		{[]string{"vault", "undelete"}, "--since"},
 	}
 	for _, tc := range tests {
 		code, _, errOut := runCLI(tc.args...)

@@ -1,0 +1,5 @@
+# step drop-documents (ssh) in phase inject
+# start 2026-10-08T14:14:31.755117335Z
+# attempt 1
+DROP TABLE
+# end 2026-10-08T14:14:31.995619507Z ok

@@ -1,0 +1,8 @@
+# step rules (check) in phase verify
+# start 2026-10-08T14:16:06.329468862Z
+# attempt 1
+pass: 3574 documents and 7729 canary writes; every business rule holds
+  metric documents = 3574
+  metric canary_writes = 7729
+  metric rule_violations = 0
+# end 2026-10-08T14:16:06.552372427Z ok

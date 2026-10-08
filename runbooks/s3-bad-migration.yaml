@@ -1,0 +1,83 @@
+id: s3-bad-migration
+description: >-
+  A bad migration resets every payment status and deletes attachments. Rewind
+  the whole database to just before it (point-in-time restore in place),
+  restore the attachments from their object versions, and prove the database
+  and the object store agree again.
+preflight:
+  - id: topology
+    check: topology
+    with: { active_site: a, standby_site: "" }
+phases:
+  - name: inject
+    steps:
+      # The deploy pipeline records when the migration started; the paid count
+      # of settled documents is the evidence the rewind is checked against.
+      - id: record-deploy
+        ssh:
+          host: "{{.db_host}}"
+          cmd: >-
+            runuser -u postgres -- psql -XAt -d docsvc -c "SELECT json_build_object(
+            'at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.US') || '+00',
+            'paid', (count(*) FILTER (WHERE payment_status = 'paid' AND created_at < now() - interval '1 minute'))::text)
+            FROM documents"
+        capture: deploy
+        timeout: 1m
+      # UPDATE without WHERE.
+      - id: reset-payments
+        ssh:
+          host: "{{.db_host}}"
+          cmd: >-
+            runuser -u postgres -- psql -X -d docsvc
+            -c "UPDATE documents SET payment_status = 'pending', updated_at = now()"
+        timeout: 1m
+      # The migration's clean-up deletes the attachments of the oldest documents.
+      - id: delete-attachments
+        run: >-
+          set -o pipefail;
+          scripts/lab-ssh.sh {{.db_host}} "runuser -u postgres -- psql -XAt -d docsvc
+          -c 'SELECT attachment_key FROM documents ORDER BY created_at LIMIT 5'" |
+          xargs -r -I KEY scripts/lab-ssh.sh obj-a "mc rm local/attachments/KEY"
+        timeout: 1m
+  # No detect phase: a logical error trips no infrastructure alert.
+  - name: decide
+    steps:
+      - id: declare-incident
+        manual: "The migration broke payments and attachments. Rewind production to before the deploy?"
+        auto_after: 30s
+  - name: recover
+    steps:
+      # Writes stop first: everything after the target is discarded anyway.
+      - id: stop-app
+        ssh: { host: app-a, cmd: systemctl stop docsvc }
+        timeout: 1m
+      - id: rewind-attachments
+        run: build/disavery attachments rewind --store obj-a --to '{{.deploy.at}}'
+        timeout: 10m
+      # In place from the vault, through the read-only vault user: after a
+      # failover, the WAL a rewind needs lives only there. The new timeline
+      # archives at once; the playbook starts the app again.
+      - id: rewind-database
+        run: >-
+          ansible-playbook infra/ansible/playbooks/rebuild-site.yml
+          -e '{"target_site": "a", "restore_target": "{{.deploy.at}}"}'
+        timeout: 20m
+      - id: service-ready
+        wait_http: { url: "https://docs.disavery.test/readyz" }
+        timeout: 2m
+  - name: verify
+    steps:
+      - { id: data-loss, check: canary }
+      - { id: recovery-time, check: prober }
+      - { id: integrity, check: amcheck, with: { host: "{{.db_host}}" } }
+      - { id: rules, check: business-rules, with: { host: "{{.db_host}}" } }
+      - id: payments-restored
+        check: query
+        with:
+          host: "{{.db_host}}"
+          sql: >-
+            SELECT count(*) FROM documents WHERE payment_status = 'paid'
+            AND created_at < TIMESTAMPTZ '{{.deploy.at}}' - interval '1 minute'
+          want: "{{.deploy.paid}}"
+      - { id: attachments, check: db-object-consistency, with: { host: "{{.db_host}}", store: obj-a } }
+      - { id: payment-callback, check: webhook-roundtrip }

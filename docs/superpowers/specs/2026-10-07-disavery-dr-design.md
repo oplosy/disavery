@@ -118,6 +118,10 @@ CLI) and are explained in `docs/bia.md`.
 | Pilot light | ≤ 60 s | ≤ 15 min | pgBackRest async WAL archive (`archive_timeout=30s`); site-b built from scratch |
 | Warm standby | ≤ 5 s | ≤ 2 min | Async streaming replica; site-b always running |
 
+Scenarios S2–S5 do not depend on the tier (they are repaired in the production
+site or follow the pilot-light path) and run on the pilot-light baseline; their
+targets are declared per scenario in `docs/bia.yaml` (`scenarios`).
+
 Retention: daily full, hourly incremental, 7-day PITR window, 14-day Object
 Lock retention in the vault. All values are configuration and may be shortened
 in the drill environment.
@@ -155,7 +159,8 @@ CLI, so cross-machine clock skew cannot affect results.
 - **Actual RPO** = incident time − timestamp of the last surviving
   acknowledged write. Also reported: number of lost acknowledged writes, and an
   ordering anomaly warning if an older write is lost while a newer one
-  survived.
+  survived. A point-in-time rewind (S3) also discards writes acknowledged after
+  the incident; actual RPO then runs to the newest lost write.
 
 ### Prober → actual RTO
 
@@ -206,7 +211,8 @@ decision point), `check` (built-in Go verifier).
 **Common fields:** `id`, `when`, `timeout`, `retries`,
 `on_failure: abort | continue`. Templating uses Go `text/template`. Phase names
 are fixed (`inject`, `detect`, `decide`, `recover`, `verify`) so RTO can be
-broken down; scenarios without injection (S6, S7) omit `inject`/`detect`.
+broken down; scenarios without injection (S6, S7) omit `inject`/`detect`, and
+scenarios whose incident trips no alert (S2, S3) omit `detect`.
 
 ## 8. Evidence and reports
 

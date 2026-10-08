@@ -26,13 +26,21 @@ func TestLoadRepositoryFile(t *testing.T) {
 	if _, err := b.Targets("cold"); err == nil {
 		t.Fatal("want error for unknown tier")
 	}
+	for _, id := range []string{"s2-drop-table", "s3-bad-migration", "s4-ransomware", "s5-secret-loss"} {
+		if _, ok := b.ScenarioTargets(id); !ok {
+			t.Fatalf("no targets for %s", id)
+		}
+	}
+	if _, ok := b.ScenarioTargets("s6-restore-test"); ok {
+		t.Fatal("the restore test is judged by restore_test, not scenario targets")
+	}
 }
 
 const valid = `
 tiers:
   t1: {rpo: 1s, rto: 1m}
 restore_test: {max_duration: 10m, pitr_tolerance: 1s}
-preflight: {max_backup_age: 1h, max_archive_age: 1m, max_canary_silence: 5s}
+preflight: {max_backup_age: 1h, max_archive_age: 1m, max_canary_silence: 5s, min_canary_history: 1m}
 `
 
 func TestLoadErrors(t *testing.T) {
@@ -42,6 +50,7 @@ func TestLoadErrors(t *testing.T) {
 		{"unknown key", valid + "extra: 1\n", "field extra not found"},
 		{"no tiers", strings.Replace(valid, "t1: {rpo: 1s, rto: 1m}", "{}", 1), "at least one tier"},
 		{"zero rto", strings.Replace(valid, "rto: 1m", "rto: 0s", 1), "tiers.t1: rpo and rto must be positive"},
+		{"zero scenario rpo", valid + "scenarios: {s2: {rpo: 0s, rto: 1m}}\n", "scenarios.s2: rpo and rto must be positive"},
 		{"missing restore test", strings.Replace(valid, "max_duration: 10m, ", "", 1), "restore_test.max_duration must be positive"},
 	}
 	for _, tc := range tests {

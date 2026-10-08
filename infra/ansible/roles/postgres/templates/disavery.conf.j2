@@ -8,3 +8,8 @@ hot_standby = on
 archive_mode = on
 archive_command = 'pgbackrest --stanza={{ pgbackrest_stanza }} archive-push %p'
 archive_timeout = {{ postgres_archive_timeout }}
+
+# Every schema change is logged with its start time in UTC, so an accidental
+# DROP can be found and a restore stopped just before it (S2).
+log_statement = 'ddl'
+log_timezone = 'UTC'

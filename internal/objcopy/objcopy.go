@@ -29,9 +29,21 @@ type Stats struct {
 // number of workers. Objects already in dst with the same size and ETag are
 // skipped, so a repeated copy is cheap. Deleted objects (a delete marker as
 // the current version) are not copied.
+//
+// What dst holds comes from listing it, not from asking for each object: a
+// MinIO store with bucket replication answers a HEAD for an object it lacks
+// from its replication target, so a wiped site store would claim to hold every
+// attachment the vault has (found in S4).
 func Copy(ctx context.Context, src, dst Store, prefix string, workers int) (Stats, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	have := map[string]minio.ObjectInfo{}
+	for obj := range dst.Client.ListObjects(ctx, dst.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
+		if obj.Err != nil {
+			return Stats{}, fmt.Errorf("list %s/%s: %w", dst.Bucket, prefix, obj.Err)
+		}
+		have[obj.Key] = obj
+	}
 	objects := src.Client.ListObjects(ctx, src.Bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true})
 
 	var (
@@ -44,16 +56,18 @@ func Copy(ctx context.Context, src, dst Store, prefix string, workers int) (Stat
 	for range max(workers, 1) {
 		wg.Go(func() {
 			for obj := range jobs {
-				done, err := copyOne(ctx, src, dst, obj)
+				if h, ok := have[obj.Key]; ok && h.Size == obj.Size && h.ETag == obj.ETag {
+					skipped.Add(1)
+					continue
+				}
+				err := copyOne(ctx, src, dst, obj)
 				switch {
 				case err != nil:
 					mu.Lock()
 					errs = append(errs, fmt.Errorf("%s: %w", obj.Key, err))
 					mu.Unlock()
-				case done:
-					copied.Add(1)
 				default:
-					skipped.Add(1)
+					copied.Add(1)
 				}
 			}
 		})
@@ -75,20 +89,16 @@ func Copy(ctx context.Context, src, dst Store, prefix string, workers int) (Stat
 	return st, errors.Join(errs...)
 }
 
-func copyOne(ctx context.Context, src, dst Store, obj minio.ObjectInfo) (bool, error) {
-	if have, err := dst.Client.StatObject(ctx, dst.Bucket, obj.Key, minio.StatObjectOptions{}); err == nil &&
-		have.Size == obj.Size && have.ETag == obj.ETag {
-		return false, nil
-	}
+func copyOne(ctx context.Context, src, dst Store, obj minio.ObjectInfo) error {
 	r, err := src.Client.GetObject(ctx, src.Bucket, obj.Key, minio.GetObjectOptions{})
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer r.Close()
 	info, err := r.Stat()
 	if err != nil {
-		return false, err
+		return err
 	}
 	_, err = dst.Client.PutObject(ctx, dst.Bucket, obj.Key, r, info.Size, minio.PutObjectOptions{ContentType: info.ContentType})
-	return err == nil, err
+	return err
 }

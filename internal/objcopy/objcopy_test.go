@@ -15,10 +15,9 @@ import (
 	"github.com/oplosy/disavery/internal/objcopy"
 )
 
-// TestCopyFromLockedBucket copies from a bucket with Object Lock and default
-// compliance retention (like the vault) into a plain versioned bucket (like a
-// site store): what `mc mirror` cannot do.
-func TestCopyFromLockedBucket(t *testing.T) {
+// startMinio starts a MinIO server for an integration test.
+func startMinio(t *testing.T) *minio.Client {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("integration test: needs Docker")
 	}
@@ -33,6 +32,15 @@ func TestCopyFromLockedBucket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	return c
+}
+
+// TestCopyFromLockedBucket copies from a bucket with Object Lock and default
+// compliance retention (like the vault) into a plain versioned bucket (like a
+// site store): what `mc mirror` cannot do.
+func TestCopyFromLockedBucket(t *testing.T) {
+	ctx := context.Background()
+	c := startMinio(t)
 	if err := c.MakeBucket(ctx, "vault", minio.MakeBucketOptions{ObjectLocking: true}); err != nil {
 		t.Fatal(err)
 	}

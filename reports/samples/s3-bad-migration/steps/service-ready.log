@@ -1,0 +1,6 @@
+# step service-ready (wait_http) in phase recover
+# start 2026-10-08T14:25:29.388726474Z
+# attempt 1
+https://docs.disavery.test/readyz: status 503
+https://docs.disavery.test/readyz answered 200
+# end 2026-10-08T14:25:30.396793808Z ok

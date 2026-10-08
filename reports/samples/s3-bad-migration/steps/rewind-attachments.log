@@ -1,0 +1,5 @@
+# step rewind-attachments (run) in phase recover
+# start 2026-10-08T14:24:40.607235876Z
+# attempt 1
+restored 5, unchanged 6381, created later 64
+# end 2026-10-08T14:24:42.45836064Z ok

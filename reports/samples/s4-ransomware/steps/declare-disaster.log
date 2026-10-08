@@ -1,0 +1,5 @@
+# step declare-disaster (manual) in phase decide
+# start 2026-10-08T14:27:12.188885568Z
+# attempt 1
+decision "The database is encrypted and the local backups are gone. Rebuild site a from the vault?": continue (automatic: true)
+# end 2026-10-08T14:27:42.189462947Z ok

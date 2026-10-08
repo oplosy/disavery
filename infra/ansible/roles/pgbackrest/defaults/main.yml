@@ -3,5 +3,8 @@ pgbackrest_repo1_retention_full: 7
 pgbackrest_repo2_bucket: pgbackrest
 pgbackrest_repo2_endpoint: vault
 pgbackrest_repo2_retention_full: 14
+# The vault identity in pgbackrest.conf: writer (pushes WAL and backups) or
+# reader (an isolated restore node only reads; role restore).
+pgbackrest_repo2_identity: writer
 pgbackrest_full_schedule: "*-*-* 01:00:00"
 pgbackrest_incr_schedule: hourly

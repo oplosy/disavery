@@ -1,0 +1,74 @@
+id: s2-drop-table
+description: >-
+  Drop the documents table while traffic continues, then repair it surgically:
+  restore the database to just before the DROP on an isolated node and copy
+  only that table back, so no unrelated write is lost.
+preflight:
+  - id: topology
+    check: topology
+    with: { active_site: a, standby_site: "" }
+phases:
+  - name: inject
+    steps:
+      - id: drop-documents
+        ssh:
+          host: "{{.db_host}}"
+          cmd: runuser -u postgres -- psql -X -d docsvc -c 'DROP TABLE documents'
+        timeout: 1m
+  # No detect phase: a dropped table trips no infrastructure alert. Detection
+  # and the decision are both inside the decide phase.
+  - name: decide
+    steps:
+      - id: declare-incident
+        manual: "The documents table is gone. Repair it from a point-in-time restore?"
+        auto_after: 30s
+  - name: recover
+    steps:
+      # The DDL log (log_statement = 'ddl') holds the DROP's start time; the
+      # restore stops just before it.
+      - id: find-drop
+        ssh:
+          host: "{{.db_host}}"
+          cmd: >-
+            line=$(grep -h 'statement: DROP TABLE documents' /var/log/postgresql/postgresql-16-main.log | tail -n 1) &&
+            [ -n "$line" ] && echo "$line" | awk '{print $1 " " $2 "+00"}'
+        capture: drop_at
+        timeout: 1m
+      - id: provision-restore-node
+        run: terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve -var restore_enabled=true
+        timeout: 5m
+      - id: restore-before-drop
+        run: >-
+          ansible-playbook infra/ansible/playbooks/restore.yml
+          -e '{"restore_target": "{{.drop_at}}"}'
+        timeout: 20m
+      # Only the dropped table goes back; everything written since the DROP
+      # (the canary, other tables) stays as it is.
+      - id: copy-table-back
+        run: >-
+          set -o pipefail;
+          scripts/lab-ssh.sh restore "runuser -u postgres -- pg_dump --format=custom --table=documents docsvc" |
+          scripts/lab-ssh.sh {{.db_host}} "runuser -u postgres -- pg_restore --dbname=docsvc --exit-on-error"
+        timeout: 10m
+      # The repair is only safe once its WAL is in the vault: a site loss
+      # before the next archive cycle would restore the database without the
+      # table (found when S5 ran right after S2). `check` switches WAL and
+      # waits until both repositories hold it.
+      - id: archive-repair
+        ssh: { host: "{{.db_host}}", cmd: runuser -u postgres -- pgbackrest --stanza=main check }
+        timeout: 2m
+  - name: verify
+    steps:
+      - { id: data-loss, check: canary }
+      - { id: recovery-time, check: prober }
+      - { id: integrity, check: amcheck, with: { host: "{{.db_host}}" } }
+      - { id: rules, check: business-rules, with: { host: "{{.db_host}}" } }
+      # Production holds every document the restore holds from before the DROP.
+      - id: documents-complete
+        check: business-rules
+        with: { host: restore, as_of: "{{.drop_at}}", compare_host: "{{.db_host}}" }
+      - { id: attachments, check: db-object-consistency, with: { host: "{{.db_host}}", store: obj-a } }
+cleanup:
+  - id: remove-restore-node
+    run: terraform -chdir=infra/terraform/envs/local apply -no-color -input=false -auto-approve -var restore_enabled=false
+    timeout: 5m

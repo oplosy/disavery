@@ -135,6 +135,35 @@ func (r Rules) ints(ctx context.Context, host, query string, n int) ([]int64, er
 // pgTime renders t as a PostgreSQL timestamptz literal.
 func pgTime(t time.Time) string { return "TIMESTAMPTZ '" + t.UTC().Format(time.RFC3339Nano) + "'" }
 
+// Query runs one SQL statement on a host's docsvc database and compares its
+// single value with an expected one, e.g. a count captured before an incident.
+// Params: host, sql, want.
+type Query struct {
+	SQL SQL
+}
+
+// Run implements Check.
+func (q Query) Run(ctx context.Context, p Params) (Result, error) {
+	if err := p.Require("host", "sql", "want"); err != nil {
+		return Result{}, err
+	}
+	rows, err := q.SQL.Query(ctx, p.With["host"], p.With["sql"])
+	if err != nil {
+		return Result{}, err
+	}
+	if len(rows) != 1 || len(rows[0]) != 1 {
+		return Result{}, fmt.Errorf("query must return one value, got %v", rows)
+	}
+	got, want := rows[0][0], p.With["want"]
+	res := Result{Details: []string{p.With["sql"]}}
+	if got != want {
+		res.Status, res.Summary = Fail, fmt.Sprintf("query on %s returned %q, want %q", p.With["host"], got, want)
+		return res, nil
+	}
+	res.Status, res.Summary = Pass, fmt.Sprintf("query on %s returned %q as expected", p.With["host"], got)
+	return res, nil
+}
+
 // ObjectVersion is one version of an object in a store.
 type ObjectVersion struct {
 	Key          string
@@ -239,8 +268,8 @@ type PITR struct {
 	Tolerance time.Duration
 }
 
-// pitrWindow bounds the journal entries judged around the target.
-const pitrWindow = 2 * time.Minute
+// PITRWindow bounds the journal entries judged around the target.
+const PITRWindow = 2 * time.Minute
 
 // Run implements Check.
 func (c PITR) Run(ctx context.Context, p Params) (Result, error) {
@@ -261,12 +290,12 @@ func (c PITR) Run(ctx context.Context, p Params) (Result, error) {
 	}
 	var sel []canary.Entry
 	for _, e := range entries {
-		if !e.Sent.Before(target.Add(-pitrWindow)) && !e.Sent.After(target.Add(pitrWindow)) {
+		if !e.Sent.Before(target.Add(-PITRWindow)) && !e.Sent.After(target.Add(PITRWindow)) {
 			sel = append(sel, e)
 		}
 	}
 	if len(sel) == 0 {
-		return Result{}, fmt.Errorf("canary journal has no writes within %s of %s", pitrWindow, target.Format(time.RFC3339))
+		return Result{}, fmt.Errorf("canary journal has no writes within %s of %s", PITRWindow, target.Format(time.RFC3339))
 	}
 	rows, err := c.SQL.Query(ctx, p.With["host"],
 		fmt.Sprintf("SELECT seq FROM canary WHERE seq BETWEEN %d AND %d", sel[0].Seq, sel[len(sel)-1].Seq))
@@ -386,10 +415,28 @@ type LiveRTO struct {
 	Samples func() []prober.Sample
 	Target  time.Duration
 	Streak  int
+	// Settle is how long to wait for the streak of successful probes when
+	// verification starts right after the last recovery step; zero judges
+	// the samples as they are.
+	Settle time.Duration
+	Poll   time.Duration
 }
 
 // Run implements Check.
-func (c LiveRTO) Run(_ context.Context, p Params) (Result, error) {
+func (c LiveRTO) Run(ctx context.Context, p Params) (Result, error) {
+	if p.Incident != nil && c.Settle > 0 {
+		deadline := time.Now().Add(c.Settle)
+		for {
+			if _, _, ok := prober.RTO(c.Samples(), *p.Incident, c.Streak); ok || time.Now().After(deadline) {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return Result{}, ctx.Err()
+			case <-time.After(c.Poll):
+			}
+		}
+	}
 	samples := c.Samples()
 	total, failed := prober.Availability(samples)
 	metrics := map[string]float64{"probes": float64(total), "failed_probes": float64(failed)}

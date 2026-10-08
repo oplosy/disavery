@@ -15,6 +15,7 @@ import (
 	"github.com/oplosy/disavery/internal/executor"
 	"github.com/oplosy/disavery/internal/prober"
 	"github.com/oplosy/disavery/internal/report"
+	"github.com/oplosy/disavery/internal/restorepoint"
 	"github.com/oplosy/disavery/internal/runbook"
 	"github.com/oplosy/disavery/internal/verify"
 )
@@ -24,6 +25,7 @@ type fakeLab struct {
 	safetyErr error
 	ran       []string
 	checks    map[string]verify.Status
+	targets   bia.Targets // of the last Checks call
 }
 
 func (f *fakeLab) Safety(context.Context, string) error           { return f.safetyErr }
@@ -47,7 +49,8 @@ func (c fakeCheck) Run(context.Context, verify.Params) (verify.Result, error) {
 	return verify.Result{Status: c.status, Summary: "fake " + string(c.status)}, nil
 }
 
-func (f *fakeLab) Checks(drill.RunContext) verify.Registry {
+func (f *fakeLab) Checks(rc drill.RunContext) verify.Registry {
+	f.targets = rc.Targets
 	reg := verify.Registry{}
 	for name, st := range f.checks {
 		reg[name] = fakeCheck{st}
@@ -80,18 +83,32 @@ phases:
       - { id: promote, run: "fail" }
 `
 
+const repair = `id: repair
+phases:
+  - name: inject
+    steps:
+      - { id: drop, run: "drop" }
+  - name: recover
+    steps:
+      - { id: fix, run: "fix" }
+  - name: verify
+    steps:
+      - { id: integ, check: amcheck }
+`
+
 func setup(t *testing.T, maxDuration string) (drill.Options, string) {
 	t.Helper()
 	dir := t.TempDir()
-	for name, content := range map[string]string{"restore.yaml": restoreTest, "loss.yaml": siteLoss} {
+	for name, content := range map[string]string{"restore.yaml": restoreTest, "loss.yaml": siteLoss, "repair.yaml": repair} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	biaPath := filepath.Join(dir, "bia.yaml")
 	if err := os.WriteFile(biaPath, []byte(`tiers: {warm-standby: {rpo: 5s, rto: 2m}}
+scenarios: {repair: {rpo: 1s, rto: 15m}}
 restore_test: {max_duration: `+maxDuration+`, pitr_tolerance: 1s}
-preflight: {max_backup_age: 2h, max_archive_age: 90s, max_canary_silence: 10s}
+preflight: {max_backup_age: 2h, max_archive_age: 90s, max_canary_silence: 10s, min_canary_history: 1m}
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -129,6 +146,42 @@ func TestRestoreTestPasses(t *testing.T) {
 	h, err := report.ReadHistory(filepath.Join(reports, "history.jsonl"))
 	if err != nil || len(h) != 1 || h[0].Result != report.Pass {
 		t.Fatalf("history %+v %v", h, err)
+	}
+}
+
+func TestDisruptiveWindows(t *testing.T) {
+	o, _ := setup(t, "15m")
+	t0 := time.Date(2026, 10, 8, 13, 0, 0, 0, time.UTC)
+	history := []report.HistoryEntry{
+		{Scenario: "restore", StartedAt: t0, DurationSeconds: 60},                                   // a restore test: normal operation
+		{Scenario: "loss", Tier: "warm-standby", StartedAt: t0.Add(time.Hour), DurationSeconds: 90}, // a site loss
+		{Scenario: "repair", StartedAt: t0.Add(2 * time.Hour), DurationSeconds: 1.5},                // has scenario targets
+	}
+	got := drill.DisruptiveWindows(history, o.BIA)
+	want := []restorepoint.Interval{
+		{From: t0.Add(time.Hour), To: t0.Add(time.Hour + 90*time.Second)},
+		{From: t0.Add(2 * time.Hour), To: t0.Add(2*time.Hour + 1500*time.Millisecond)},
+	}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+// TestScenarioTargets: a tierless runbook with targets in the BIA's scenarios
+// is judged against them, not as a restore test.
+func TestScenarioTargets(t *testing.T) {
+	o, _ := setup(t, "1ns")
+	o.RunbookID, o.Yes = "repair", true
+	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}}
+	r, _, err := drill.Run(context.Background(), o, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l.targets != (bia.Targets{RPO: time.Second, RTO: 15 * time.Minute}) {
+		t.Fatalf("checks got targets %+v", l.targets)
+	}
+	if r.Result != report.Pass || len(r.Measurements) != 0 {
+		t.Fatalf("result %s measurements %+v", r.Result, r.Measurements)
 	}
 }
 

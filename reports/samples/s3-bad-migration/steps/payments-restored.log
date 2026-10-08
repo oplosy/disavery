@@ -1,0 +1,6 @@
+# step payments-restored (check) in phase verify
+# start 2026-10-08T14:25:32.47211408Z
+# attempt 1
+pass: query on db-a returned "3665" as expected
+  SELECT count(*) FROM documents WHERE payment_status = 'paid' AND created_at < TIMESTAMPTZ '2026-10-08 14:24:08.648434+00' - interval '1 minute'
+# end 2026-10-08T14:25:32.704717954Z ok

@@ -74,14 +74,25 @@ type Point struct {
 // TargetLayout formats targets the way PostgreSQL prints timestamptz.
 const TargetLayout = "2006-01-02 15:04:05.000-07"
 
+// Interval is a span of time, both ends included.
+type Interval struct {
+	From, To time.Time
+}
+
 // Pick chooses uniformly among backup sets that have a usable window and then
 // a uniform target inside it. A window starts margin after both the set's end
 // and the start of canary coverage, and ends margin before the newest
 // archived WAL, so the target is reachable and has canary evidence around it.
-func Pick(backups []Backup, coverage, archived time.Time, margin time.Duration, seed int64) (Point, error) {
+// Targets inside an excluded interval are never chosen: around a write that
+// production lost (a crash, or a rewind that abandoned a timeline) the canary
+// journal and the restorable history disagree, so such a restore could not be
+// judged.
+func Pick(backups []Backup, coverage, archived time.Time, margin time.Duration, excluded []Interval, seed int64) (Point, error) {
 	type window struct {
 		b          Backup
 		start, end time.Time
+		allowed    []Interval
+		length     time.Duration
 	}
 	var ws []window
 	for _, b := range backups {
@@ -90,20 +101,59 @@ func Pick(backups []Backup, coverage, archived time.Time, margin time.Duration, 
 			start = coverage
 		}
 		start, end := start.Add(margin), archived.Add(-margin)
-		if start.Before(end) {
-			ws = append(ws, window{b, start, end})
+		if !start.Before(end) {
+			continue
+		}
+		w := window{b: b, start: start, end: end, allowed: subtract(Interval{start, end}, excluded)}
+		for _, a := range w.allowed {
+			w.length += a.To.Sub(a.From)
+		}
+		if w.length > 0 {
+			ws = append(ws, w)
 		}
 	}
 	if len(ws) == 0 {
-		return Point{}, fmt.Errorf("no backup set has a restorable window yet (%d sets, canary coverage from %s, WAL archived until %s); wait a few minutes",
-			len(backups), coverage.UTC().Format(time.RFC3339), archived.UTC().Format(time.RFC3339))
+		return Point{}, fmt.Errorf("no backup set has a restorable window yet (%d sets, canary coverage from %s, WAL archived until %s, %d excluded spans); wait a few minutes",
+			len(backups), coverage.UTC().Format(time.RFC3339), archived.UTC().Format(time.RFC3339), len(excluded))
 	}
 	rng := rand.New(rand.NewPCG(uint64(seed), 0))
 	w := ws[rng.IntN(len(ws))]
-	target := w.start.Add(time.Duration(rng.Int64N(int64(w.end.Sub(w.start))))).Truncate(time.Millisecond).UTC()
+	offset := time.Duration(rng.Int64N(int64(w.length)))
+	target := w.allowed[len(w.allowed)-1].To
+	for _, a := range w.allowed {
+		if d := a.To.Sub(a.From); offset < d {
+			target = a.From.Add(offset)
+			break
+		} else {
+			offset -= d
+		}
+	}
+	target = target.Truncate(time.Millisecond).UTC()
 	return Point{
 		Repo: w.b.Repo, Set: w.b.Label, Type: w.b.Type,
 		Target: target.Format(TargetLayout), TargetTime: target,
 		WindowStart: w.start, WindowEnd: w.end, Candidates: len(ws), Seed: seed,
 	}, nil
+}
+
+// subtract returns the parts of in that no excluded interval covers, in order.
+func subtract(in Interval, excluded []Interval) []Interval {
+	out := []Interval{in}
+	for _, x := range excluded {
+		var next []Interval
+		for _, a := range out {
+			if !x.To.After(a.From) || !x.From.Before(a.To) {
+				next = append(next, a)
+				continue
+			}
+			if x.From.After(a.From) {
+				next = append(next, Interval{a.From, x.From})
+			}
+			if x.To.Before(a.To) {
+				next = append(next, Interval{x.To, a.To})
+			}
+		}
+		out = next
+	}
+	return out
 }

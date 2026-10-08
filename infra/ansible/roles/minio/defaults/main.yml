@@ -10,9 +10,19 @@ minio_root_password: "{{ secrets.minio.vault_root_password if minio_profile == '
 # Replicas arrive without the bucket's default retention; a timer locks them (ADR 0004).
 minio_vault_replicated_buckets: [attachments]
 minio_vault_sweep_interval: 1min
+# A run checks the versions modified since the previous run, minus this overlap
+# for replication lag; a full sweep of every version runs this often.
+minio_vault_sweep_overlap_seconds: 120
+minio_vault_full_sweep_seconds: 3600
+minio_vault_sweep_workers: 8
 # Site profile: whether this store replicates (the active site's does) and to
 # which standby store besides the vault ("" for none).
 minio_replicate: true
 minio_standby_store: ""
 # Site profile: the active store a standby store copies existing objects from.
 minio_seed_from: ""
+
+# Vault profile: the production identities and their policies (templates/).
+minio_vault_users:
+  - { policy: prod-writer, access_key: "{{ secrets.minio.vault_writer_access_key }}", secret_key: "{{ secrets.minio.vault_writer_secret_key }}" }
+  - { policy: prod-reader, access_key: "{{ secrets.minio.vault_reader_access_key }}", secret_key: "{{ secrets.minio.vault_reader_secret_key }}" }

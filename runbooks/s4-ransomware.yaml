@@ -1,0 +1,77 @@
+id: s4-ransomware
+description: >-
+  Ransomware holding the production writer's vault key tries to destroy the
+  immutable backups, hides them behind delete markers, encrypts the database
+  and wipes the local backups and attachments. The vault refuses every
+  destructive request; the vault administrator removes the markers and site a
+  is rebuilt from the vault, restoring through the read-only vault user.
+preflight:
+  - id: topology
+    check: topology
+    with: { active_site: a, standby_site: "" }
+phases:
+  - name: inject
+    steps:
+      # Fails the drill if the vault allows any destructive request; the
+      # captured evidence counts what it refused (ADR 0006).
+      - id: attack-vault
+        run: build/disavery vault attack
+        capture: attack
+        timeout: 10m
+      - id: encrypt-database
+        ssh:
+          host: "{{.db_host}}"
+          cmd: >-
+            systemctl stop postgresql@16-main &&
+            find /var/lib/postgresql/16/main -type f -exec sh -c
+            'openssl enc -aes-256-cbc -pbkdf2 -pass pass:ransom -in "$1" -out "$1.locked" && rm "$1"' _ {} \; &&
+            rm -rf /var/lib/pgbackrest/*
+        timeout: 5m
+      - id: wipe-attachments
+        ssh: { host: obj-a, cmd: mc rm --recursive --versions --force local/attachments }
+        timeout: 5m
+  - name: detect
+    steps:
+      - id: primary-down-alert
+        wait_alert: PostgresPrimaryDown
+        timeout: 2m
+  - name: decide
+    steps:
+      - id: declare-disaster
+        manual: "The database is encrypted and the local backups are gone. Rebuild site a from the vault?"
+        auto_after: 30s
+  - name: recover
+    steps:
+      # The vault administrator is a separate account; the writer cannot
+      # remove delete markers, so the attacker cannot undo this either.
+      - id: reveal-backups
+        run: build/disavery vault undelete --since '{{.attack.started_at}}'
+        timeout: 10m
+      # The encrypted files stay aside for forensics; restore needs an empty directory.
+      - id: set-aside-encrypted-data
+        ssh:
+          host: "{{.db_host}}"
+          cmd: >-
+            rm -rf /var/lib/postgresql/16/forensics &&
+            mv /var/lib/postgresql/16/main /var/lib/postgresql/16/forensics &&
+            install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/16/main
+        timeout: 2m
+      # Site a is rebuilt in place exactly as a pilot-light DR site would be.
+      - id: rebuild-database
+        run: ansible-playbook infra/ansible/playbooks/rebuild-site.yml -e target_site=a
+        timeout: 20m
+      - id: restore-attachments
+        run: build/disavery attachments copy --from vault --to obj-a
+        timeout: 20m
+      - id: service-ready
+        wait_http: { url: "https://docs.disavery.test/readyz" }
+        timeout: 2m
+  - name: verify
+    steps:
+      - { id: data-loss, check: canary }
+      - { id: recovery-time, check: prober }
+      - { id: integrity, check: amcheck, with: { host: "{{.db_host}}" } }
+      - { id: rules, check: business-rules, with: { host: "{{.db_host}}" } }
+      - { id: attachments, check: db-object-consistency, with: { host: "{{.db_host}}", store: obj-a } }
+      - { id: vault-attachments, check: db-object-consistency, with: { host: "{{.db_host}}", store: vault } }
+      - { id: payment-callback, check: webhook-roundtrip }

@@ -1,0 +1,5 @@
+# step integrity (check) in phase verify
+# start 2026-10-08T14:16:06.025283665Z
+# attempt 1
+pass: pg_amcheck found no corruption in docsvc (heap and all indexes)
+# end 2026-10-08T14:16:06.328814272Z ok

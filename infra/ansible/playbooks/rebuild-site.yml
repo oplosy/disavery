@@ -1,8 +1,12 @@
-# Builds the DR site from the vault (pilot light, S1): an empty object store,
-# the database restored from repo2 to the end of the archive and promoted,
-# then the application. Extra var: dr_site (default b).
+# Builds a site from the vault: the object store, the database restored from
+# repo2 and promoted, then the application. Pilot light (S1, S5) builds the DR
+# site; ransomware (S4) rebuilds site a in place; a bad migration (S3) rewinds
+# it to a point in time. Restoring from the vault, not the node's local repo1,
+# matters after a failover: repo1 only holds this node's own WAL, while every
+# primary archives to the vault.
+# Extra vars: target_site (default b); restore_target ("" = end of the archive).
 - name: Prepare the DR site
-  hosts: "site_{{ dr_site | default('b') }}"
+  hosts: "site_{{ target_site | default('b') }}"
   gather_facts: false
   tasks:
     - name: Wait for SSH
@@ -18,21 +22,21 @@
       ansible.builtin.setup:
 
 - name: Base configuration
-  hosts: "site_{{ dr_site | default('b') }}"
+  hosts: "site_{{ target_site | default('b') }}"
   roles:
     - base
 
 # The attachments are copied from the vault by the runbook (disavery
 # attachments copy); mc cannot copy out of an Object Lock bucket into a plain one.
 - name: Object store
-  hosts: "obj:&site_{{ dr_site | default('b') }}"
+  hosts: "obj:&site_{{ target_site | default('b') }}"
   roles:
     - role: minio
       minio_profile: site
       minio_replicate: false
 
 - name: Database from repo2
-  hosts: "db:&site_{{ dr_site | default('b') }}"
+  hosts: "db:&site_{{ target_site | default('b') }}"
   roles:
     - role: restore
       restore_isolated: false
@@ -41,7 +45,7 @@
     - postgres_exporter
 
 - name: Application
-  hosts: "app:&site_{{ dr_site | default('b') }}"
+  hosts: "app:&site_{{ target_site | default('b') }}"
   roles:
     - role: docsvc
       docsvc_running: true

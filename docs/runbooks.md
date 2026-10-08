@@ -7,7 +7,7 @@ request); unknown keys are errors, so typos fail loudly.
 ```yaml
 id: s6-restore-test            # must equal the file name
 description: Restore a random backup and verify it.
-tiers: []                      # DR tiers from docs/bia.yaml; empty = restore test
+tiers: []                      # DR tiers from docs/bia.yaml; empty = targets from bia.yaml scenarios.<id>, else a restore test
 vars: { repo: "2" }            # string variables for templates and conditions
 preflight:                     # checks only; any failure ends the drill as ERROR, untouched
   - { id: topo, check: topology, with: { active_site: a, standby_site: "" } }
@@ -47,6 +47,10 @@ Common fields:
 | `on_failure` | `abort` (default) or `continue` (default in `verify` and `preflight`, so every check reports) |
 | `capture` | `run`/`ssh` only: stores stdout as a variable; a JSON object becomes a map (`{{.point.set}}`) |
 
+A `run` step that moves data between nodes pipes through
+`scripts/lab-ssh.sh HOST COMMAND`, e.g. a table dump from the restore node into
+production (S2).
+
 ## Templates and variables
 
 `run`, `ssh.host`, `ssh.cmd`, `wait_http.url`, `manual` and `with` values are
@@ -62,8 +66,9 @@ captured values, and the built-ins `scenario`, `tier`, `env`, `run_id`,
 | `business-rules` | `host`; optional `as_of`, `tolerance`, `compare_host` | Business rules hold; with `as_of`, no document newer than the target and the same number of older documents as `compare_host` |
 | `db-object-consistency` | `host`, `store` (`vault` or `obj-<site>`); optional `as_of`, `grace` | Every document's attachment exists; orphan objects are reported |
 | `pitr` | `host`, `target`; optional `tolerance` | The restore contains every canary write acknowledged before the target and none sent after it |
-| `canary` | optional `lookback` (15m) | With an `inject` phase: actual RPO (last surviving write before the incident) and lost writes. Without: a controlled switchover must lose no acknowledged write |
-| `prober` | — | With an `inject` phase: actual RTO. Without: the longest outage, as downtime |
+| `canary` | optional `lookback` (15m) | With an `inject` phase: actual RPO (from the last surviving write before the incident to the incident, or to the newest lost write if a rewind discarded later ones) and lost writes. Without: a controlled switchover must lose no acknowledged write |
+| `prober` | — | With an `inject` phase: actual RTO (waits up to 15 s for five successful probes after the last recovery step). Without: the longest outage, as downtime |
+| `query` | `host`, `sql`, `want` | One SQL statement on the docsvc database returns exactly `want`, e.g. a count captured before the incident |
 | `replication` | `primary`, `standby`; optional `max_lag` (5s) | The standby streams from the primary within the lag |
 | `topology` | `active_site`, `standby_site` | The lab is in the expected topology (`disavery env set`) |
 | `store-sync` | `source`, `replica`; optional `grace` (60s) | The standby attachment store holds every current object of the active one |

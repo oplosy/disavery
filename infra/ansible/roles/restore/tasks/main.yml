@@ -1,8 +1,8 @@
 - name: Check the restore parameters
   ansible.builtin.assert:
     that:
-      - not (restore_isolated | bool) or (restore_set | length > 0 and restore_target | length > 0)
-    fail_msg: an isolated restore (S6) needs restore_set and restore_target
+      - not (restore_isolated | bool) or restore_target | length > 0
+    fail_msg: an isolated restore (S2, S6) needs restore_target
 
 - name: Install PostgreSQL
   ansible.builtin.include_role:
@@ -10,10 +10,14 @@
     tasks_from: install
     public: true
 
+# An isolated node only ever reads the vault. A node that becomes the primary
+# keeps the writer, because it archives from its first moment.
 - name: Install and configure pgBackRest
   ansible.builtin.include_role:
     name: pgbackrest
     tasks_from: config
+  vars:
+    pgbackrest_repo2_identity: "{{ 'reader' if restore_isolated | bool else 'writer' }}"
 
 # Defence in depth next to --archive-mode=off below: a restored test cluster
 # that archived into the production stanza would corrupt the repositories.
@@ -48,6 +52,10 @@
     --delta restore
   become: true
   become_user: postgres
+  # A restore needs no write access to the vault (S4, ADR 0006).
+  environment:
+    PGBACKREST_REPO2_S3_KEY: "{{ secrets.minio.vault_reader_access_key }}"
+    PGBACKREST_REPO2_S3_KEY_SECRET: "{{ secrets.minio.vault_reader_secret_key }}"
   changed_when: true
 
 - name: Start PostgreSQL
@@ -64,3 +72,14 @@
   retries: 120
   delay: 5
   changed_when: false
+
+# The unit's checkpoint after start (ADR 0005) can run while the restore is
+# still recovering; the promotion's end-of-recovery checkpoint then puts the
+# checkpointer to sleep for a whole checkpoint_timeout, and archive_timeout is
+# ignored until it wakes. A checkpoint after the promotion wakes it at once.
+- name: Checkpoint after the promotion so archive_timeout applies at once
+  ansible.builtin.command: psql -XAtqc CHECKPOINT
+  become: true
+  become_user: postgres
+  when: not (restore_isolated | bool)
+  changed_when: true

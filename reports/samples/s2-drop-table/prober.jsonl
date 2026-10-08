@@ -1,0 +1,203 @@
+{"at":"2026-10-08T14:14:31.755180388Z","ok":true,"latency":17229187}
+{"at":"2026-10-08T14:14:32.255358036Z","ok":false,"latency":12669146,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:32.75593217Z","ok":false,"latency":12706001,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:33.255659599Z","ok":false,"latency":12996041,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:33.755476758Z","ok":false,"latency":11959454,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:34.256135339Z","ok":false,"latency":12070768,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:34.755330216Z","ok":false,"latency":12005487,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:35.255966372Z","ok":false,"latency":11054613,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:35.755904703Z","ok":false,"latency":11466415,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:36.256111349Z","ok":false,"latency":12490761,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:36.756178478Z","ok":false,"latency":12335124,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:37.25563437Z","ok":false,"latency":13888475,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:37.755296123Z","ok":false,"latency":12835059,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:38.255964366Z","ok":false,"latency":12479561,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:38.755927745Z","ok":false,"latency":12274436,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:39.256122352Z","ok":false,"latency":12254905,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:39.755807496Z","ok":false,"latency":10959710,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:40.255719912Z","ok":false,"latency":11884110,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:40.755509947Z","ok":false,"latency":12929033,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:41.25556759Z","ok":false,"latency":21462914,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:41.756113603Z","ok":false,"latency":13245839,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:42.255579022Z","ok":false,"latency":21978185,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:42.755608779Z","ok":false,"latency":16941510,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:43.255767762Z","ok":false,"latency":19722018,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:43.756144292Z","ok":false,"latency":12726625,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:44.256457669Z","ok":false,"latency":17533621,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:44.756005191Z","ok":false,"latency":11048518,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:45.256196494Z","ok":false,"latency":11961496,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:45.756008383Z","ok":false,"latency":12323226,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:46.25536007Z","ok":false,"latency":21813789,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:46.755202041Z","ok":false,"latency":13702344,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:47.255364439Z","ok":false,"latency":18691060,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:47.756090792Z","ok":false,"latency":12187014,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:48.255266605Z","ok":false,"latency":16660725,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:48.755886249Z","ok":false,"latency":13873837,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:49.255713405Z","ok":false,"latency":12660233,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:49.755334485Z","ok":false,"latency":12370387,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:50.255705986Z","ok":false,"latency":11273892,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:50.75456425Z","ok":false,"latency":15701523,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:51.254309191Z","ok":false,"latency":15321941,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:51.753606872Z","ok":false,"latency":12237353,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:52.253919567Z","ok":false,"latency":14464456,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:52.754464683Z","ok":false,"latency":13746997,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:53.254660012Z","ok":false,"latency":13994000,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:53.753720999Z","ok":false,"latency":13698448,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:54.253431925Z","ok":false,"latency":16242971,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:54.753545234Z","ok":false,"latency":14641454,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:55.254246722Z","ok":false,"latency":10433814,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:55.753673408Z","ok":false,"latency":11365068,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:56.253939554Z","ok":false,"latency":12980144,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:56.753490478Z","ok":false,"latency":12108168,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:57.253753409Z","ok":false,"latency":17682716,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:57.754376991Z","ok":false,"latency":12502015,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:58.254038986Z","ok":false,"latency":16135677,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:58.753419905Z","ok":false,"latency":12548130,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:59.253888913Z","ok":false,"latency":12676286,"err":"write: status 503"}
+{"at":"2026-10-08T14:14:59.754483539Z","ok":false,"latency":14014327,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:00.25420997Z","ok":false,"latency":10479267,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:00.754217183Z","ok":false,"latency":12369030,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:01.253404496Z","ok":false,"latency":12408742,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:01.754260692Z","ok":false,"latency":12315544,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:02.254400456Z","ok":false,"latency":11982817,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:02.75431243Z","ok":false,"latency":11893879,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:03.254286447Z","ok":false,"latency":18586398,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:03.753767453Z","ok":false,"latency":11935728,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:04.25351193Z","ok":false,"latency":12380924,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:04.753709701Z","ok":false,"latency":12492817,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:05.254229362Z","ok":false,"latency":11581017,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:05.754263342Z","ok":false,"latency":14962842,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:06.254416058Z","ok":false,"latency":12113036,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:06.753923422Z","ok":false,"latency":12136265,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:07.254292674Z","ok":false,"latency":13075941,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:07.753860947Z","ok":false,"latency":13131835,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:08.253847274Z","ok":false,"latency":12876172,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:08.753572415Z","ok":false,"latency":11066852,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:09.254506147Z","ok":false,"latency":14213396,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:09.754221417Z","ok":false,"latency":12779941,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:10.253833825Z","ok":false,"latency":12016387,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:10.754370612Z","ok":false,"latency":12426509,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:11.254239064Z","ok":false,"latency":11532201,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:11.754247462Z","ok":false,"latency":12260564,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:12.254215859Z","ok":false,"latency":10821171,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:12.753938394Z","ok":false,"latency":12790863,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:13.254293038Z","ok":false,"latency":12653471,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:13.753763046Z","ok":false,"latency":11865710,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:14.254512939Z","ok":false,"latency":12737580,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:14.75437171Z","ok":false,"latency":11651658,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:15.253771936Z","ok":false,"latency":11615821,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:15.754226414Z","ok":false,"latency":12321952,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:16.254220379Z","ok":false,"latency":12526002,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:16.753536871Z","ok":false,"latency":12403146,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:17.254443936Z","ok":false,"latency":11797738,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:17.754121274Z","ok":false,"latency":15015299,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:18.254120663Z","ok":false,"latency":16517429,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:18.754221074Z","ok":false,"latency":12872206,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:19.254021613Z","ok":false,"latency":12612929,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:19.753557589Z","ok":false,"latency":11735420,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:20.253738916Z","ok":false,"latency":13179695,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:20.752575661Z","ok":false,"latency":12364704,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:21.252397826Z","ok":false,"latency":11505817,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:21.75238904Z","ok":false,"latency":11633218,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:22.251853299Z","ok":false,"latency":13790464,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:22.752515814Z","ok":false,"latency":12054083,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:23.252428843Z","ok":false,"latency":12265503,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:23.752384916Z","ok":false,"latency":10649870,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:24.25193912Z","ok":false,"latency":12681469,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:24.752344596Z","ok":false,"latency":11928785,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:25.252397599Z","ok":false,"latency":11962351,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:25.7517695Z","ok":false,"latency":14918153,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:26.25241982Z","ok":false,"latency":11706847,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:26.751962525Z","ok":false,"latency":13165036,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:27.25191117Z","ok":false,"latency":11296928,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:27.751615739Z","ok":false,"latency":15365735,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:28.251906275Z","ok":false,"latency":13852293,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:28.752419794Z","ok":false,"latency":14338972,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:29.251634064Z","ok":false,"latency":13705869,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:29.752220416Z","ok":false,"latency":15985071,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:30.251744539Z","ok":false,"latency":12700399,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:30.752398768Z","ok":false,"latency":13456211,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:31.251702595Z","ok":false,"latency":12697718,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:31.752295717Z","ok":false,"latency":12517381,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:32.251681993Z","ok":false,"latency":11951784,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:32.752421788Z","ok":false,"latency":12707474,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:33.252566794Z","ok":false,"latency":11970431,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:33.752404671Z","ok":false,"latency":11090742,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:34.252390403Z","ok":false,"latency":12683785,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:34.751774612Z","ok":false,"latency":12575900,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:35.252148662Z","ok":false,"latency":12271797,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:35.752413029Z","ok":false,"latency":15472202,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:36.252389373Z","ok":false,"latency":11920904,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:36.752218555Z","ok":false,"latency":13355231,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:37.252442006Z","ok":false,"latency":12382675,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:37.752403521Z","ok":false,"latency":12380857,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:38.252415586Z","ok":false,"latency":11194515,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:38.752070281Z","ok":false,"latency":12178165,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:39.252050462Z","ok":false,"latency":12139984,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:39.752607413Z","ok":false,"latency":12211690,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:40.252403294Z","ok":false,"latency":12505268,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:40.751708958Z","ok":false,"latency":14658119,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:41.25242773Z","ok":false,"latency":10884354,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:41.752166593Z","ok":false,"latency":11038201,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:42.252020897Z","ok":false,"latency":10928683,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:42.75243125Z","ok":false,"latency":10836193,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:43.252272273Z","ok":false,"latency":11832855,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:43.751902591Z","ok":false,"latency":14306724,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:44.251995782Z","ok":false,"latency":12885963,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:44.751677461Z","ok":false,"latency":14665291,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:45.251794459Z","ok":false,"latency":12927009,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:45.752420801Z","ok":false,"latency":13974104,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:46.25255512Z","ok":false,"latency":14763680,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:46.75228714Z","ok":false,"latency":10932258,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:47.252033512Z","ok":false,"latency":13597721,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:47.752548623Z","ok":false,"latency":12274546,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:48.252396237Z","ok":false,"latency":10819039,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:48.752275054Z","ok":false,"latency":12744373,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:49.251799648Z","ok":false,"latency":13858622,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:49.752539085Z","ok":false,"latency":13358664,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:50.252468305Z","ok":false,"latency":14905229,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:50.751213105Z","ok":false,"latency":14007225,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:51.251243406Z","ok":false,"latency":15427548,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:51.751316017Z","ok":false,"latency":12583095,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:52.250864614Z","ok":false,"latency":11619192,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:52.751354769Z","ok":false,"latency":12238294,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:53.251055094Z","ok":false,"latency":12398803,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:53.75051026Z","ok":false,"latency":11959079,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:54.251417183Z","ok":false,"latency":13249183,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:54.750544946Z","ok":false,"latency":11141265,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:55.251523619Z","ok":false,"latency":12574478,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:55.751520459Z","ok":false,"latency":14119409,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:56.250602761Z","ok":false,"latency":12056463,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:56.751382402Z","ok":false,"latency":13275072,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:57.250862165Z","ok":false,"latency":12163189,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:57.751024941Z","ok":false,"latency":11899602,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:58.250740589Z","ok":false,"latency":10566462,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:58.751309006Z","ok":false,"latency":13029973,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:59.251360856Z","ok":false,"latency":13316688,"err":"write: status 503"}
+{"at":"2026-10-08T14:15:59.75135448Z","ok":false,"latency":23193478,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:00.251445736Z","ok":false,"latency":18942976,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:00.751460387Z","ok":false,"latency":49306518,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:01.251269844Z","ok":false,"latency":19432150,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:01.751391314Z","ok":false,"latency":20384796,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:02.251248418Z","ok":false,"latency":15570007,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:02.751283065Z","ok":false,"latency":17489826,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:03.251324213Z","ok":false,"latency":16983499,"err":"write: status 503"}
+{"at":"2026-10-08T14:16:03.751291355Z","ok":true,"latency":20842004}
+{"at":"2026-10-08T14:16:04.251164407Z","ok":true,"latency":19943700}
+{"at":"2026-10-08T14:16:04.750634402Z","ok":true,"latency":26510334}
+{"at":"2026-10-08T14:16:05.250824575Z","ok":true,"latency":21371315}
+{"at":"2026-10-08T14:16:05.750888762Z","ok":true,"latency":25536420}
+{"at":"2026-10-08T14:16:06.251304393Z","ok":true,"latency":20206962}
+{"at":"2026-10-08T14:16:06.750951112Z","ok":true,"latency":19830240}
+{"at":"2026-10-08T14:16:07.250486683Z","ok":true,"latency":98628589}
+{"at":"2026-10-08T14:16:07.751301031Z","ok":true,"latency":20895232}
+{"at":"2026-10-08T14:16:08.251143441Z","ok":true,"latency":21354658}
+{"at":"2026-10-08T14:16:08.750566534Z","ok":true,"latency":20884291}
+{"at":"2026-10-08T14:16:09.250986462Z","ok":true,"latency":34901734}
+{"at":"2026-10-08T14:16:09.751003865Z","ok":true,"latency":30950431}
+{"at":"2026-10-08T14:16:10.250755663Z","ok":true,"latency":22269666}
+{"at":"2026-10-08T14:16:10.751316838Z","ok":true,"latency":21903555}
+{"at":"2026-10-08T14:16:11.250784457Z","ok":true,"latency":22612055}
+{"at":"2026-10-08T14:16:11.750816709Z","ok":true,"latency":21866070}
+{"at":"2026-10-08T14:16:12.251210862Z","ok":true,"latency":19962015}
+{"at":"2026-10-08T14:16:12.750835452Z","ok":true,"latency":21416413}

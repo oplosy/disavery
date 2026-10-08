@@ -38,3 +38,14 @@ it reported an RPO of 0.5 s.
 - One extra checkpoint per start: negligible.
 - This is the kind of failure only a measured drill finds: backups, archiving
   and `pgbackrest check` all looked healthy throughout.
+
+## Update 2026-10-08: restored clusters checkpoint after the promotion
+A ransomware drill (S4) that ran a minute after a bad-migration rewind (S3)
+lost 2 m 15 s of writes against a 60 s target. The rewound primary had
+archived nothing for more than a minute after its promotion: the unit's
+checkpoint after start had run while the restore was still recovering, and the
+promotion's end-of-recovery checkpoint put the checkpointer to sleep again.
+Promoted streaming standbys (S1 warm standby, S7) were not affected; their
+archive kept its 30-second cadence. Every restore that becomes a primary
+(role `restore`: S1 and S5 pilot light, S3, S4) now runs `CHECKPOINT` after the
+promotion, and the S3-then-S4 sequence is part of the plan 4 verification.

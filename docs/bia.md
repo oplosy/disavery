@@ -29,6 +29,26 @@ Reports break RTO into **detect** (alert fires) → **decide** (disaster declare
 a fixed, configurable delay in drills) → **recover** → **verify**. The decide
 phase is real in production and deliberately not optimised away in drills.
 
+## Incidents inside the production site (S2–S5)
+
+These scenarios do not depend on the DR tier: they are repaired in site a (S2–S4)
+or follow the pilot-light path (S5), and they run on the pilot-light baseline.
+Their targets live under `scenarios` in `bia.yaml`.
+
+| Scenario | Target RPO | Target RTO | Why |
+|---|---|---|---|
+| S2 dropped table | ≤ 5 s | ≤ 15 min | Surgical repair: only the dropped table goes back, so no unrelated write may be lost; the 5 s only covers the canary's one-second cadence. The repair counts once its WAL is in the vault, or a site loss right after it would bring the DROP back |
+| S3 bad migration | ≤ 60 s | ≤ 15 min | A full rewind from the vault ([ADR 0008](adr/0008-point-in-time-restores-from-the-vault.md)) discards every write after the target, so RPO is the time from the deploy until writes stop: detection plus the decision |
+| S4 ransomware | ≤ 60 s | ≤ 30 min | Production and its local backups are gone; the vault's archive bounds RPO as in pilot light, and RTO includes revealing the hidden backups and a rebuild ([ADR 0006](adr/0006-vault-identities-and-delete-markers.md)) |
+| S5 secret loss | ≤ 60 s | ≤ 20 min | A pilot-light site loss whose recovery first retrieves the age key from escrow |
+
+For a rewind (S3), the measured RPO runs from the last surviving write to the
+newest acknowledged write the rewind discarded: all of that span is data the
+business lost, even though the service was up while it was written.
+
+S2 and S3 have no detect phase: a dropped table or a wrong `UPDATE` trips no
+infrastructure alert, so detection and the decision share the decide phase.
+
 ## Random restore test (S6)
 
 A backup that has never been restored is a hope, not a backup. Every S6 run
@@ -55,6 +75,7 @@ always means a failed recovery, not a broken lab.
 | `preflight.max_backup_age` | 2 h | Incremental backups run hourly to both repositories |
 | `preflight.max_archive_age` | 45 s | `archive_timeout` is 30 s and the canary writes every second, so a segment ships at least every 30 s; anything older means the primary is not archiving on schedule ([ADR 0005](adr/0005-checkpoint-after-start.md)) |
 | `preflight.max_canary_silence` | 10 s | The canary writes every second; silence means the measurement would be blind |
+| `preflight.min_canary_history` | 1 min | The canary must have written for two archive cycles without a gap, and production must hold all of it. Otherwise a drill started right after another drill's recovery finds no surviving write between the two incidents and charges the earlier loss to this one (found when S4 ran a minute after S3) |
 
 ## Retention
 

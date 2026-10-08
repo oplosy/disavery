@@ -15,6 +15,14 @@ tiers:
     mechanism: async streaming replica; site-b always running
     cost: { always_on_nodes: 3, monthly_usd: 72 }  # 3 VMs at about $24/month, see bia.md
 
+# Incidents repaired inside the production site, independent of the DR tier.
+# They run on the pilot-light baseline (site a serves, no site b).
+scenarios:
+  s2-drop-table:    { rpo: 5s, rto: 15m }   # surgical: no unrelated write may be lost
+  s3-bad-migration: { rpo: 60s, rto: 15m }
+  s4-ransomware:    { rpo: 60s, rto: 30m }
+  s5-secret-loss:   { rpo: 60s, rto: 20m }  # pilot-light site loss plus the age key
+
 # S6, the random restore test: restore plus verification must finish within
 # max_duration; pitr_tolerance is the window around the PITR target in which
 # an in-flight write may legitimately land on either side.
@@ -27,3 +35,4 @@ preflight:
   max_backup_age: 2h       # incremental backups run hourly
   max_archive_age: 45s     # archive_timeout is 30s and the canary writes every second
   max_canary_silence: 10s
+  min_canary_history: 1m   # two archive cycles of steady writes before an incident

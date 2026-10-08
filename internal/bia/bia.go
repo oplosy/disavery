@@ -1,5 +1,5 @@
 // Package bia loads the business impact analysis: recovery targets per DR tier
-// and the thresholds drills are judged against (docs/bia.yaml).
+// and per scenario, and the thresholds drills are judged against (docs/bia.yaml).
 package bia
 
 import (
@@ -33,11 +33,19 @@ type Tier struct {
 	} `yaml:"cost"`
 }
 
+// Scenario holds the targets of a scenario that does not depend on the DR
+// tier: an incident repaired inside the production site (S2–S5).
+type Scenario struct {
+	RPO yamltime.Duration `yaml:"rpo"`
+	RTO yamltime.Duration `yaml:"rto"`
+}
+
 // BIA is the parsed bia.yaml.
 type BIA struct {
-	Service        string          `yaml:"service"`
-	Classification string          `yaml:"classification"`
-	Tiers          map[string]Tier `yaml:"tiers"`
+	Service        string              `yaml:"service"`
+	Classification string              `yaml:"classification"`
+	Tiers          map[string]Tier     `yaml:"tiers"`
+	Scenarios      map[string]Scenario `yaml:"scenarios"`
 	RestoreTest    struct {
 		MaxDuration   yamltime.Duration `yaml:"max_duration"`
 		PITRTolerance yamltime.Duration `yaml:"pitr_tolerance"`
@@ -46,6 +54,10 @@ type BIA struct {
 		MaxBackupAge     yamltime.Duration `yaml:"max_backup_age"`
 		MaxArchiveAge    yamltime.Duration `yaml:"max_archive_age"`
 		MaxCanarySilence yamltime.Duration `yaml:"max_canary_silence"`
+		// MinCanaryHistory is how long the canary must have written without a
+		// gap, all of it held by production, before an incident: a drill
+		// measures one incident, not the tail of an earlier one.
+		MinCanaryHistory yamltime.Duration `yaml:"min_canary_history"`
 	} `yaml:"preflight"`
 }
 
@@ -78,6 +90,11 @@ func (b *BIA) validate() error {
 			errs = append(errs, fmt.Errorf("tiers.%s: rpo and rto must be positive", name))
 		}
 	}
+	for name, sc := range b.Scenarios {
+		if sc.RPO <= 0 || sc.RTO <= 0 {
+			errs = append(errs, fmt.Errorf("scenarios.%s: rpo and rto must be positive", name))
+		}
+	}
 	positive := []struct {
 		name string
 		v    yamltime.Duration
@@ -86,6 +103,7 @@ func (b *BIA) validate() error {
 		{"preflight.max_backup_age", b.Preflight.MaxBackupAge},
 		{"preflight.max_archive_age", b.Preflight.MaxArchiveAge},
 		{"preflight.max_canary_silence", b.Preflight.MaxCanarySilence},
+		{"preflight.min_canary_history", b.Preflight.MinCanaryHistory},
 	}
 	for _, p := range positive {
 		if p.v <= 0 {
@@ -112,4 +130,13 @@ func (b *BIA) Targets(tier string) (Targets, error) {
 		return Targets{}, fmt.Errorf("unknown tier %q", tier)
 	}
 	return Targets{RPO: t.RPO.D(), RTO: t.RTO.D()}, nil
+}
+
+// ScenarioTargets returns the objectives of a tierless scenario, if declared.
+func (b *BIA) ScenarioTargets(id string) (Targets, bool) {
+	sc, ok := b.Scenarios[id]
+	if !ok {
+		return Targets{}, false
+	}
+	return Targets{RPO: sc.RPO.D(), RTO: sc.RTO.D()}, true
 }

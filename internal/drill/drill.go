@@ -20,6 +20,7 @@ import (
 	"github.com/oplosy/disavery/internal/executor"
 	"github.com/oplosy/disavery/internal/prober"
 	"github.com/oplosy/disavery/internal/report"
+	"github.com/oplosy/disavery/internal/restorepoint"
 	"github.com/oplosy/disavery/internal/runbook"
 	"github.com/oplosy/disavery/internal/verify"
 )
@@ -197,7 +198,8 @@ func resolveTier(rb *runbook.Runbook, o Options) (bia.Targets, error) {
 		if o.Tier != "" {
 			return bia.Targets{}, fmt.Errorf("runbook %s does not take a tier", rb.ID)
 		}
-		return bia.Targets{}, nil
+		t, _ := o.BIA.ScenarioTargets(rb.ID)
+		return t, nil
 	}
 	if o.Tier == "" {
 		return bia.Targets{}, fmt.Errorf("runbook %s needs --tier (one of %s)", rb.ID, strings.Join(rb.Tiers, ", "))
@@ -210,9 +212,10 @@ func resolveTier(rb *runbook.Runbook, o Options) (bia.Targets, error) {
 	return bia.Targets{}, fmt.Errorf("runbook %s does not support tier %q (supports %s)", rb.ID, o.Tier, strings.Join(rb.Tiers, ", "))
 }
 
-// measurements collects what the checks measured. A runbook without tiers is
-// a restore test: its recovery time runs from the start of recover to the
-// end of verify and is judged against restore_test.max_duration.
+// measurements collects what the checks measured. A runbook without tiers
+// and without scenario targets is a restore test: its recovery time runs from
+// the start of recover to the end of verify and is judged against
+// restore_test.max_duration.
 func measurements(rb *runbook.Runbook, res executor.Result, b *bia.BIA) []verify.Measurement {
 	var out []verify.Measurement
 	for _, s := range res.Steps {
@@ -220,7 +223,8 @@ func measurements(rb *runbook.Runbook, res executor.Result, b *bia.BIA) []verify
 			out = append(out, s.Check.Measurements...)
 		}
 	}
-	if len(rb.Tiers) == 0 && res.Outcome == executor.Completed {
+	_, scenario := b.ScenarioTargets(rb.ID)
+	if len(rb.Tiers) == 0 && !scenario && res.Outcome == executor.Completed {
 		var start, end time.Time
 		for _, p := range res.Phases {
 			switch p.Name {
@@ -273,6 +277,24 @@ func classify(res executor.Result, ms []verify.Measurement, cause error) (report
 		}
 	}
 	return report.Pass, notes
+}
+
+// DisruptiveWindows returns when earlier drills changed production: every run
+// of a tiered runbook (S1, S7) or of one with scenario targets (S2–S5), from
+// its start to its end. The random restore test (S6) draws its targets from
+// normal operation outside them: inside, production may legitimately lack a
+// table or serve from another site, and a restore of that moment proves
+// nothing about the backups.
+func DisruptiveWindows(history []report.HistoryEntry, b *bia.BIA) []restorepoint.Interval {
+	var out []restorepoint.Interval
+	for _, e := range history {
+		if _, scenario := b.ScenarioTargets(e.Scenario); e.Tier == "" && !scenario {
+			continue
+		}
+		end := e.StartedAt.Add(time.Duration(e.DurationSeconds * float64(time.Second)))
+		out = append(out, restorepoint.Interval{From: e.StartedAt, To: end})
+	}
+	return out
 }
 
 // sampleLog collects prober samples for the checks.

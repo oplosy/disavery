@@ -1,0 +1,9 @@
+# step delete-attachments (run) in phase inject
+# start 2026-10-08T14:24:08.92087827Z
+# attempt 1
+Created delete marker `local/attachments/documents/857a44ca-fde2-4e3e-ab81-8718456d4f59` (versionId=893a230e-4967-4951-8081-12c33e128d0c).
+Created delete marker `local/attachments/documents/929ea094-cdd0-436a-9a2d-7311a8ffcc0f` (versionId=adc54163-e946-4cee-bd80-5666a61dadd3).
+Created delete marker `local/attachments/documents/68e50ada-5971-4e1e-b816-f875840bc0af` (versionId=618ad218-aab9-4ff8-9448-bed9f0bf6a9c).
+Created delete marker `local/attachments/documents/65ba26d2-8993-4abe-808f-bc46b482b3ee` (versionId=540919ec-d000-4d6b-9f98-178dfd44f3e2).
+Created delete marker `local/attachments/documents/293c8fbc-7782-4d70-9ee6-b280a70027e2` (versionId=fb36103f-1d3a-4ac5-a1d1-29d3f2494aa3).
+# end 2026-10-08T14:24:10.385802342Z ok

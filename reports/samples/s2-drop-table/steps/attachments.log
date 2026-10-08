@@ -1,0 +1,10 @@
+# step attachments (check) in phase verify
+# start 2026-10-08T14:16:07.22777393Z
+# attempt 1
+pass: all 3576 documents have their attachment in obj-a; 2308 orphan object(s)
+  orphan objects: [documents/ef3f86c1-f808-456c-8032-d2740ab13029 documents/fa9b546e-e3f1-4b2e-9865-21a49b19e96f documents/5696ef25-18b9-4c1e-a079-e507ef8a27df documents/7b193669-dfa7-47bb-aa0c-185a34ef416a documents/88c22b5a-e1d8-4deb-b0d7-8814a9514707 documents/b71ab3d2-9f5a-405c-8725-696a92d0e392 documents/0e38fb81-64f7-4b75-89ae-aa7477e40fc3 documents/64217e10-5315-4d24-87cf-8a50e68fd9c8 documents/95129b9b-abb1-45c2-8f5d-51f529ad2af6 documents/b471c3f1-f7bb-4d0a-98f7-50ff582bb6b5] (and 2298 more)
+  metric documents = 3576
+  metric objects = 5997
+  metric missing = 0
+  metric orphans = 2308
+# end 2026-10-08T14:16:08.410985145Z ok

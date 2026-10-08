@@ -1,0 +1,7 @@
+# step kill-site-a (run) in phase inject
+# start 2026-10-08T14:16:14.193777109Z
+# attempt 1
+app-a
+db-a
+obj-a
+# end 2026-10-08T14:16:15.292894843Z ok

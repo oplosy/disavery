@@ -1,0 +1,10 @@
+# step documents-complete (check) in phase verify
+# start 2026-10-08T14:16:06.553001759Z
+# attempt 1
+pass: 3568 documents and 7635 canary writes; every business rule holds; document counts match production at the target
+  metric documents = 3568
+  metric canary_writes = 7635
+  metric rule_violations = 0
+  metric documents_before_target = 3567
+  metric production_documents_before_target = 3567
+# end 2026-10-08T14:16:07.227120821Z ok

@@ -1,0 +1,5 @@
+# step service-ready (wait_http) in phase recover
+# start 2026-10-08T14:20:18.536548554Z
+# attempt 1
+https://docs.disavery.test/readyz answered 200
+# end 2026-10-08T14:20:18.542148719Z ok

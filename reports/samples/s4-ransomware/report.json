@@ -1,0 +1,475 @@
+{
+  "schema_version": 1,
+  "run_id": "20261008T142624Z-s4-ransomware",
+  "scenario": "s4-ransomware",
+  "description": "Ransomware holding the production writer's vault key tries to destroy the immutable backups, hides them behind delete markers, encrypts the database and wipes the local backups and attachments. The vault refuses every destructive request; the vault administrator removes the markers and site a is rebuilt from the vault, restoring through the read-only vault user.",
+  "env": "drill",
+  "result": "PASS",
+  "seed": 1791469584615525424,
+  "started_at": "2026-10-08T14:26:24.653208498Z",
+  "finished_at": "2026-10-08T14:29:16.279897279Z",
+  "incident_at": "2026-10-08T14:26:25.176393792Z",
+  "data": {
+    "attack": {
+      "attempts": [
+        {
+          "action": "delete-version",
+          "bucket": "pgbackrest",
+          "codes": {
+            "AccessDenied": 8276
+          },
+          "denied": 8276,
+          "tried": 8276
+        },
+        {
+          "action": "bypass-governance",
+          "bucket": "pgbackrest",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "shorten-retention",
+          "bucket": "pgbackrest",
+          "codes": {
+            "InvalidRequest": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "remove-default-retention",
+          "bucket": "pgbackrest",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "suspend-versioning",
+          "bucket": "pgbackrest",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "expire-everything",
+          "bucket": "pgbackrest",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "delete-bucket",
+          "bucket": "pgbackrest",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "delete-version",
+          "bucket": "attachments",
+          "codes": {
+            "AccessDenied": 67386
+          },
+          "denied": 67386,
+          "tried": 67386
+        },
+        {
+          "action": "bypass-governance",
+          "bucket": "attachments",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "shorten-retention",
+          "bucket": "attachments",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "remove-default-retention",
+          "bucket": "attachments",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "suspend-versioning",
+          "bucket": "attachments",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "expire-everything",
+          "bucket": "attachments",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        },
+        {
+          "action": "delete-bucket",
+          "bucket": "attachments",
+          "codes": {
+            "AccessDenied": 1
+          },
+          "denied": 1,
+          "tried": 1
+        }
+      ],
+      "hidden": 14625,
+      "started_at": "2026-10-08T14:26:25.198389765Z"
+    },
+    "db_host": "db-a",
+    "env": "drill",
+    "report_dir": "reports/20261008T142624Z-s4-ransomware",
+    "run_id": "20261008T142624Z-s4-ransomware",
+    "scenario": "s4-ransomware",
+    "seed": "1791469584615525424",
+    "tier": ""
+  },
+  "measurements": [
+    {
+      "name": "rpo",
+      "target_seconds": 60,
+      "actual_seconds": 24.000849739,
+      "met": true
+    },
+    {
+      "name": "rto",
+      "target_seconds": 1800,
+      "actual_seconds": 120.500961357,
+      "met": true
+    }
+  ],
+  "preflight": [
+    {
+      "name": "app-ready",
+      "status": "pass",
+      "detail": "https://docs.disavery.test/readyz answered 200"
+    },
+    {
+      "name": "backups-fresh",
+      "status": "pass",
+      "detail": "newest backups: repo1 incr 26m16s ago, repo2 full 5m6s ago"
+    },
+    {
+      "name": "wal-archive",
+      "status": "pass",
+      "detail": "last WAL segment archived 2s ago"
+    },
+    {
+      "name": "canary-writing",
+      "status": "pass",
+      "detail": "last acknowledged canary write 378ms ago (seq 1791468773638); 56 writes in the last 1m0s, all in production"
+    },
+    {
+      "name": "vault-reachable",
+      "status": "pass",
+      "detail": "https://vault:9000/minio/health/live answered 200"
+    },
+    {
+      "name": "escrow-present",
+      "status": "pass",
+      "detail": "/escrow/age-keys.txt matches the current age key"
+    },
+    {
+      "name": "no-firing-alerts",
+      "status": "pass",
+      "detail": "Alertmanager reports no active alert"
+    },
+    {
+      "name": "topology",
+      "status": "pass",
+      "detail": "site a active, no standby"
+    }
+  ],
+  "phases": [
+    {
+      "name": "inject",
+      "start": "2026-10-08T14:26:25.176393792Z",
+      "end": "2026-10-08T14:27:12.185680257Z"
+    },
+    {
+      "name": "detect",
+      "start": "2026-10-08T14:27:12.185681969Z",
+      "end": "2026-10-08T14:27:12.188883693Z"
+    },
+    {
+      "name": "decide",
+      "start": "2026-10-08T14:27:12.188884896Z",
+      "end": "2026-10-08T14:27:42.190206035Z"
+    },
+    {
+      "name": "recover",
+      "start": "2026-10-08T14:27:42.190209406Z",
+      "end": "2026-10-08T14:29:07.515948991Z"
+    },
+    {
+      "name": "verify",
+      "start": "2026-10-08T14:29:07.515949745Z",
+      "end": "2026-10-08T14:29:16.279337268Z"
+    }
+  ],
+  "steps": [
+    {
+      "id": "attack-vault",
+      "phase": "inject",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:26:25.176394663Z",
+      "end": "2026-10-08T14:26:46.508386591Z"
+    },
+    {
+      "id": "encrypt-database",
+      "phase": "inject",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:26:46.508906231Z",
+      "end": "2026-10-08T14:27:05.784725542Z"
+    },
+    {
+      "id": "wipe-attachments",
+      "phase": "inject",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:27:05.785478049Z",
+      "end": "2026-10-08T14:27:12.185217084Z"
+    },
+    {
+      "id": "primary-down-alert",
+      "phase": "detect",
+      "kind": "wait_alert",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:27:12.185682878Z",
+      "end": "2026-10-08T14:27:12.188506521Z"
+    },
+    {
+      "id": "declare-disaster",
+      "phase": "decide",
+      "kind": "manual",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:27:12.188885568Z",
+      "end": "2026-10-08T14:27:42.189648039Z",
+      "decision": {
+        "prompt": "The database is encrypted and the local backups are gone. Rebuild site a from the vault?",
+        "answer": "continue",
+        "auto": true,
+        "at": "2026-10-08T14:27:42.189210606Z"
+      }
+    },
+    {
+      "id": "reveal-backups",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:27:42.190210939Z",
+      "end": "2026-10-08T14:27:55.898503967Z"
+    },
+    {
+      "id": "set-aside-encrypted-data",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:27:55.89891903Z",
+      "end": "2026-10-08T14:27:56.159946255Z"
+    },
+    {
+      "id": "rebuild-database",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:27:56.160703508Z",
+      "end": "2026-10-08T14:28:51.967630059Z"
+    },
+    {
+      "id": "restore-attachments",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:28:51.968171309Z",
+      "end": "2026-10-08T14:29:07.50951469Z"
+    },
+    {
+      "id": "service-ready",
+      "phase": "recover",
+      "kind": "wait_http",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:07.510019707Z",
+      "end": "2026-10-08T14:29:07.515350342Z"
+    },
+    {
+      "id": "data-loss",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:07.515951423Z",
+      "end": "2026-10-08T14:29:07.557327699Z",
+      "check": {
+        "name": "canary",
+        "status": "pass",
+        "summary": "actual RPO 24.001s (target 1m0s); 24 of 678 acknowledged writes lost",
+        "metrics": {
+          "acknowledged": 678,
+          "anomalies": 19,
+          "lost": 24,
+          "rpo_seconds": 24.000849739
+        },
+        "details": [
+          "lost writes (seq): [1791468773636 1791468773637 1791468773638 1791468773639 1791468773640 1791468773641 1791468773642 1791468773643 1791468773644 1791468773645] (and 14 more)",
+          "ordering anomalies: older write lost while a newer one survived (seq): [1791468773515 1791468773516 1791468773517 1791468773518 1791468773519 1791468773520 1791468773521 1791468773522 1791468773523 1791468773524] (and 9 more)"
+        ]
+      }
+    },
+    {
+      "id": "recovery-time",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:07.557788268Z",
+      "end": "2026-10-08T14:29:07.559870966Z",
+      "check": {
+        "name": "prober",
+        "status": "pass",
+        "summary": "actual RTO 2m0.501s (target 30m0s)",
+        "metrics": {
+          "failed_probes": 197,
+          "probes": 325,
+          "rto_seconds": 120.500961357
+        }
+      }
+    },
+    {
+      "id": "integrity",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:07.560262887Z",
+      "end": "2026-10-08T14:29:07.851566896Z",
+      "check": {
+        "name": "amcheck",
+        "status": "pass",
+        "summary": "pg_amcheck found no corruption in docsvc (heap and all indexes)"
+      }
+    },
+    {
+      "id": "rules",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:07.852064733Z",
+      "end": "2026-10-08T14:29:08.077027932Z",
+      "check": {
+        "name": "business-rules",
+        "status": "pass",
+        "summary": "4044 documents and 8061 canary writes; every business rule holds",
+        "metrics": {
+          "canary_writes": 8061,
+          "documents": 4044,
+          "rule_violations": 0
+        }
+      }
+    },
+    {
+      "id": "attachments",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:08.077457081Z",
+      "end": "2026-10-08T14:29:08.605519715Z",
+      "check": {
+        "name": "db-object-consistency",
+        "status": "pass",
+        "summary": "all 4045 documents have their attachment in obj-a; 0 orphan object(s)",
+        "metrics": {
+          "documents": 4045,
+          "missing": 0,
+          "objects": 6593,
+          "orphans": 0
+        }
+      }
+    },
+    {
+      "id": "vault-attachments",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:08.606022075Z",
+      "end": "2026-10-08T14:29:15.254463144Z",
+      "check": {
+        "name": "db-object-consistency",
+        "status": "pass",
+        "summary": "all 4046 documents have their attachment in vault; 2548 orphan object(s)",
+        "metrics": {
+          "documents": 4046,
+          "missing": 0,
+          "objects": 6594,
+          "orphans": 2548
+        },
+        "details": [
+          "orphan objects: [documents/7401bbb7-311e-4366-8f22-638235efdea7 documents/97f972d6-8ecf-4b9c-bbec-88a3f422e444 documents/4d3f3daa-1f82-45b4-a993-6417d287ee86 documents/51d21d7a-3bfb-4f7b-8a7c-dd563c54e907 documents/dca64274-069c-4b49-a7d1-0a2cc64b0b98 documents/f042725d-bbce-4ba9-a542-f5a02601bc3a documents/0a265cf1-9cbd-4658-9a1c-27697436f3fb documents/9497bbe3-02ae-4af8-95f0-384ef0076147 documents/a246dd2b-01f3-4327-ad30-ea8d7eadc237 documents/b0d08a63-28e7-4e55-b30d-e697cfa941bb] (and 2538 more)"
+        ]
+      }
+    },
+    {
+      "id": "payment-callback",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:29:15.254931457Z",
+      "end": "2026-10-08T14:29:16.278895194Z",
+      "check": {
+        "name": "webhook-roundtrip",
+        "status": "pass",
+        "summary": "document b0e1abc3-a02c-4679-bcf0-fae5a94c7e0e marked paid by the provider's callback after 1.01s",
+        "metrics": {
+          "callback_seconds": 1.005629008
+        }
+      }
+    }
+  ],
+  "cleanup": null,
+  "availability": {
+    "probes": 343,
+    "failed": 197
+  }
+}

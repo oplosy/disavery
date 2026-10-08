@@ -1,0 +1,5 @@
+# step declare-incident (manual) in phase decide
+# start 2026-10-08T14:24:10.386721519Z
+# attempt 1
+decision "The migration broke payments and attachments. Rewind production to before the deploy?": continue (automatic: true)
+# end 2026-10-08T14:24:40.38869387Z ok

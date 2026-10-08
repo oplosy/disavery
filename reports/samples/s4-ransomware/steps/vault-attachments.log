@@ -1,0 +1,10 @@
+# step vault-attachments (check) in phase verify
+# start 2026-10-08T14:29:08.606022075Z
+# attempt 1
+pass: all 4046 documents have their attachment in vault; 2548 orphan object(s)
+  orphan objects: [documents/7401bbb7-311e-4366-8f22-638235efdea7 documents/97f972d6-8ecf-4b9c-bbec-88a3f422e444 documents/4d3f3daa-1f82-45b4-a993-6417d287ee86 documents/51d21d7a-3bfb-4f7b-8a7c-dd563c54e907 documents/dca64274-069c-4b49-a7d1-0a2cc64b0b98 documents/f042725d-bbce-4ba9-a542-f5a02601bc3a documents/0a265cf1-9cbd-4658-9a1c-27697436f3fb documents/9497bbe3-02ae-4af8-95f0-384ef0076147 documents/a246dd2b-01f3-4327-ad30-ea8d7eadc237 documents/b0d08a63-28e7-4e55-b30d-e697cfa941bb] (and 2538 more)
+  metric objects = 6594
+  metric missing = 0
+  metric orphans = 2548
+  metric documents = 4046
+# end 2026-10-08T14:29:15.253966585Z ok

@@ -1,0 +1,5 @@
+# step topology (check) in phase preflight
+# start 2026-10-08T14:14:31.747741595Z
+# attempt 1
+pass: site a active, no standby
+# end 2026-10-08T14:14:31.752833265Z ok

@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "run_id": "20261008T141431Z-s2-drop-table",
+  "scenario": "s2-drop-table",
+  "description": "Drop the documents table while traffic continues, then repair it surgically: restore the database to just before the DROP on an isolated node and copy only that table back, so no unrelated write is lost.",
+  "env": "drill",
+  "result": "PASS",
+  "seed": 1791468871160739654,
+  "started_at": "2026-10-08T14:14:31.208424212Z",
+  "finished_at": "2026-10-08T14:16:13.012865172Z",
+  "incident_at": "2026-10-08T14:14:31.755116328Z",
+  "data": {
+    "db_host": "db-a",
+    "drop_at": "2026-10-08 14:14:31.987+00",
+    "env": "drill",
+    "report_dir": "reports/20261008T141431Z-s2-drop-table",
+    "run_id": "20261008T141431Z-s2-drop-table",
+    "scenario": "s2-drop-table",
+    "seed": "1791468871160739654",
+    "tier": ""
+  },
+  "measurements": [
+    {
+      "name": "rpo",
+      "target_seconds": 5,
+      "actual_seconds": 0.927804952,
+      "met": true
+    },
+    {
+      "name": "rto",
+      "target_seconds": 900,
+      "actual_seconds": 92.000873106,
+      "met": true
+    }
+  ],
+  "preflight": [
+    {
+      "name": "app-ready",
+      "status": "pass",
+      "detail": "https://docs.disavery.test/readyz answered 200"
+    },
+    {
+      "name": "backups-fresh",
+      "status": "pass",
+      "detail": "newest backups: repo1 incr 14m22s ago, repo2 incr 14m21s ago"
+    },
+    {
+      "name": "wal-archive",
+      "status": "pass",
+      "detail": "last WAL segment archived 7s ago"
+    },
+    {
+      "name": "canary-writing",
+      "status": "pass",
+      "detail": "last acknowledged canary write 909ms ago (seq 1791468772924); 60 writes in the last 1m0s, all in production"
+    },
+    {
+      "name": "vault-reachable",
+      "status": "pass",
+      "detail": "https://vault:9000/minio/health/live answered 200"
+    },
+    {
+      "name": "escrow-present",
+      "status": "pass",
+      "detail": "/escrow/age-keys.txt matches the current age key"
+    },
+    {
+      "name": "no-firing-alerts",
+      "status": "pass",
+      "detail": "Alertmanager reports no active alert"
+    },
+    {
+      "name": "topology",
+      "status": "pass",
+      "detail": "site a active, no standby"
+    }
+  ],
+  "phases": [
+    {
+      "name": "inject",
+      "start": "2026-10-08T14:14:31.755116328Z",
+      "end": "2026-10-08T14:14:31.996450725Z"
+    },
+    {
+      "name": "decide",
+      "start": "2026-10-08T14:14:31.996452029Z",
+      "end": "2026-10-08T14:15:01.997896589Z"
+    },
+    {
+      "name": "recover",
+      "start": "2026-10-08T14:15:01.997898071Z",
+      "end": "2026-10-08T14:16:03.980876893Z"
+    },
+    {
+      "name": "verify",
+      "start": "2026-10-08T14:16:03.980880395Z",
+      "end": "2026-10-08T14:16:08.411586604Z"
+    }
+  ],
+  "steps": [
+    {
+      "id": "drop-documents",
+      "phase": "inject",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:14:31.755117335Z",
+      "end": "2026-10-08T14:14:31.995948646Z"
+    },
+    {
+      "id": "declare-incident",
+      "phase": "decide",
+      "kind": "manual",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:14:31.996453017Z",
+      "end": "2026-10-08T14:15:01.99738686Z",
+      "decision": {
+        "prompt": "The documents table is gone. Repair it from a point-in-time restore?",
+        "answer": "continue",
+        "auto": true,
+        "at": "2026-10-08T14:15:01.996949669Z"
+      }
+    },
+    {
+      "id": "find-drop",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:15:01.997899001Z",
+      "end": "2026-10-08T14:15:02.208970667Z"
+    },
+    {
+      "id": "provision-restore-node",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:15:02.209484982Z",
+      "end": "2026-10-08T14:15:05.881700576Z"
+    },
+    {
+      "id": "restore-before-drop",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:15:05.882379239Z",
+      "end": "2026-10-08T14:16:03.302787479Z"
+    },
+    {
+      "id": "copy-table-back",
+      "phase": "recover",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:03.30339469Z",
+      "end": "2026-10-08T14:16:03.638033601Z"
+    },
+    {
+      "id": "archive-repair",
+      "phase": "recover",
+      "kind": "ssh",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:03.638737925Z",
+      "end": "2026-10-08T14:16:03.980349261Z"
+    },
+    {
+      "id": "data-loss",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:03.980881456Z",
+      "end": "2026-10-08T14:16:04.01913978Z",
+      "check": {
+        "name": "canary",
+        "status": "pass",
+        "summary": "actual RPO 928ms (target 5s); 0 of 993 acknowledged writes lost",
+        "metrics": {
+          "acknowledged": 993,
+          "anomalies": 0,
+          "lost": 0,
+          "rpo_seconds": 0.927804952
+        }
+      }
+    },
+    {
+      "id": "recovery-time",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:04.019547828Z",
+      "end": "2026-10-08T14:16:06.024605988Z",
+      "check": {
+        "name": "prober",
+        "status": "pass",
+        "summary": "actual RTO 1m32.001s (target 15m0s)",
+        "metrics": {
+          "failed_probes": 183,
+          "probes": 189,
+          "rto_seconds": 92.000873106
+        }
+      }
+    },
+    {
+      "id": "integrity",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:06.025283665Z",
+      "end": "2026-10-08T14:16:06.329002782Z",
+      "check": {
+        "name": "amcheck",
+        "status": "pass",
+        "summary": "pg_amcheck found no corruption in docsvc (heap and all indexes)"
+      }
+    },
+    {
+      "id": "rules",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:06.329468862Z",
+      "end": "2026-10-08T14:16:06.552516932Z",
+      "check": {
+        "name": "business-rules",
+        "status": "pass",
+        "summary": "3574 documents and 7729 canary writes; every business rule holds",
+        "metrics": {
+          "canary_writes": 7729,
+          "documents": 3574,
+          "rule_violations": 0
+        }
+      }
+    },
+    {
+      "id": "documents-complete",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:06.553001759Z",
+      "end": "2026-10-08T14:16:07.227289978Z",
+      "check": {
+        "name": "business-rules",
+        "status": "pass",
+        "summary": "3568 documents and 7635 canary writes; every business rule holds; document counts match production at the target",
+        "metrics": {
+          "canary_writes": 7635,
+          "documents": 3568,
+          "documents_before_target": 3567,
+          "production_documents_before_target": 3567,
+          "rule_violations": 0
+        }
+      }
+    },
+    {
+      "id": "attachments",
+      "phase": "verify",
+      "kind": "check",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:07.22777393Z",
+      "end": "2026-10-08T14:16:08.411096298Z",
+      "check": {
+        "name": "db-object-consistency",
+        "status": "pass",
+        "summary": "all 3576 documents have their attachment in obj-a; 2308 orphan object(s)",
+        "metrics": {
+          "documents": 3576,
+          "missing": 0,
+          "objects": 5997,
+          "orphans": 2308
+        },
+        "details": [
+          "orphan objects: [documents/ef3f86c1-f808-456c-8032-d2740ab13029 documents/fa9b546e-e3f1-4b2e-9865-21a49b19e96f documents/5696ef25-18b9-4c1e-a079-e507ef8a27df documents/7b193669-dfa7-47bb-aa0c-185a34ef416a documents/88c22b5a-e1d8-4deb-b0d7-8814a9514707 documents/b71ab3d2-9f5a-405c-8725-696a92d0e392 documents/0e38fb81-64f7-4b75-89ae-aa7477e40fc3 documents/64217e10-5315-4d24-87cf-8a50e68fd9c8 documents/95129b9b-abb1-45c2-8f5d-51f529ad2af6 documents/b471c3f1-f7bb-4d0a-98f7-50ff582bb6b5] (and 2298 more)"
+        ]
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "id": "remove-restore-node",
+      "phase": "cleanup",
+      "kind": "run",
+      "status": "ok",
+      "attempts": 1,
+      "start": "2026-10-08T14:16:08.411592981Z",
+      "end": "2026-10-08T14:16:13.011536392Z"
+    }
+  ],
+  "availability": {
+    "probes": 203,
+    "failed": 183
+  }
+}

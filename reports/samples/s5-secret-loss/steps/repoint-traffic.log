@@ -1,0 +1,324 @@
+# step repoint-traffic (run) in phase recover
+# start 2026-10-08T14:20:00.0723129Z
+# attempt 1
+active_site=b standby_site= site_a_enabled=true site_b_enabled=true
+data.sops_file.secrets: Reading...
+data.sops_file.secrets: Read complete after 0s [id=-]
+local_file.inventory: Refreshing state... [id=ef97d985029700be6dcd2f0490d142c339706ae7]
+data.docker_network.wan: Reading...
+docker_image.coredns: Refreshing state... [id=sha256:9caabbf6238b189a65d0d6e6ac138de60d6a1c419e5a341fbbb7c78382559c6ecoredns/coredns:1.11.3]
+docker_image.caddy: Refreshing state... [id=sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530fcaddy:2.8.4]
+data.docker_network.wan: Read complete after 0s [id=41924cf4b208fd467ee4642801a045d68416561c03ceda4d40fad14b383b6ec2]
+docker_container.dns: Refreshing state... [id=ac8e64563253188ff8a7472d810443aade408a8f62823319f8c6a0d3c9fa3c74]
+docker_container.edge: Refreshing state... [id=6b5b507f63c20d4e13c8af75bda85287acfcdb1ce04aa34a4425fd59baeefdbe]
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+-/+ destroy and then create replacement
+
+Terraform will perform the following actions:
+
+  # docker_container.dns must be replaced
+-/+ resource "docker_container" "dns" {
+      + bridge                                      = (known after apply)
+      + container_logs                              = (known after apply)
+      - cpu_shares                                  = 0 -> null
+      - dns                                         = [] -> null
+      - dns_opts                                    = [] -> null
+      - dns_search                                  = [] -> null
+      ~ entrypoint                                  = [
+          - "/coredns",
+        ] -> (known after apply)
+      ~ env                                         = [] -> (known after apply)
+      + exit_code                                   = (known after apply)
+      - group_add                                   = [] -> null
+      ~ hostname                                    = "ac8e64563253" -> (known after apply)
+      ~ id                                          = "ac8e64563253188ff8a7472d810443aade408a8f62823319f8c6a0d3c9fa3c74" -> (known after apply)
+      ~ init                                        = false -> (known after apply)
+      ~ ipc_mode                                    = "private" -> (known after apply)
+      ~ log_driver                                  = "json-file" -> (known after apply)
+      - log_opts                                    = {} -> null
+      - max_retry_count                             = 0 -> null
+      - memory                                      = 0 -> null
+      - memory_swap                                 = 0 -> null
+        name                                        = "dns"
+      ~ network_data                                = [
+          - {
+              - gateway                   = "172.31.0.1"
+              - global_ipv6_prefix_length = 0
+              - ip_address                = "172.31.0.10"
+              - ip_prefix_length          = 24
+              - mac_address               = "de:27:56:82:40:fa"
+              - network_name              = "disavery-wan"
+                # (2 unchanged attributes hidden)
+            },
+        ] -> (known after apply)
+      - privileged                                  = false -> null
+      - publish_all_ports                           = false -> null
+      ~ runtime                                     = "runc" -> (known after apply)
+      ~ security_opts                               = [] -> (known after apply)
+      ~ shm_size                                    = 64 -> (known after apply)
+      + stop_signal                                 = (known after apply)
+      ~ stop_timeout                                = 0 -> (known after apply)
+      - storage_opts                                = {} -> null
+      - sysctls                                     = {} -> null
+      - tmpfs                                       = {} -> null
+      - user                                        = "nonroot:nonroot" -> null
+      - working_dir                                 = "/home/nonroot" -> null
+        # (20 unchanged attributes hidden)
+
+      ~ healthcheck (known after apply)
+
+      - upload { # forces replacement
+          - content        = <<-EOT
+                disavery.test:53 {
+                    hosts {
+                        172.31.0.11 docs.disavery.test
+                        172.31.0.21 direct.docs.disavery.test
+                        ttl 30
+                    }
+                    errors
+                    log
+                }
+                
+                .:53 {
+                    forward . /etc/resolv.conf
+                    cache 30
+                    errors
+                }
+            EOT -> null
+          - executable     = false -> null
+          - file           = "/Corefile" -> null
+            # (3 unchanged attributes hidden)
+        }
+      + upload { # forces replacement
+          + content        = <<-EOT
+                disavery.test:53 {
+                    hosts {
+                        172.31.0.11 docs.disavery.test
+                        172.31.0.31 direct.docs.disavery.test
+                        ttl 30
+                    }
+                    errors
+                    log
+                }
+                
+                .:53 {
+                    forward . /etc/resolv.conf
+                    cache 30
+                    errors
+                }
+            EOT
+          + executable     = false
+          + file           = "/Corefile"
+            # (3 unchanged attributes hidden)
+        }
+
+        # (2 unchanged blocks hidden)
+    }
+
+  # docker_container.edge must be replaced
+-/+ resource "docker_container" "edge" {
+      + bridge                                      = (known after apply)
+      ~ command                                     = [
+          - "caddy",
+          - "run",
+          - "--config",
+          - "/etc/caddy/Caddyfile",
+          - "--adapter",
+          - "caddyfile",
+        ] -> (known after apply)
+      + container_logs                              = (known after apply)
+      - cpu_shares                                  = 0 -> null
+      - dns_opts                                    = [] -> null
+      - dns_search                                  = [] -> null
+      ~ entrypoint                                  = [] -> (known after apply)
+      ~ env                                         = [] -> (known after apply)
+      + exit_code                                   = (known after apply)
+      - group_add                                   = [] -> null
+      ~ hostname                                    = "6b5b507f63c2" -> (known after apply)
+      ~ id                                          = "6b5b507f63c20d4e13c8af75bda85287acfcdb1ce04aa34a4425fd59baeefdbe" -> (known after apply)
+      ~ init                                        = false -> (known after apply)
+      ~ ipc_mode                                    = "private" -> (known after apply)
+      ~ log_driver                                  = "json-file" -> (known after apply)
+      - log_opts                                    = {} -> null
+      - max_retry_count                             = 0 -> null
+      - memory                                      = 0 -> null
+      - memory_swap                                 = 0 -> null
+        name                                        = "edge"
+      ~ network_data                                = [
+          - {
+              - gateway                   = "172.31.0.1"
+              - global_ipv6_prefix_length = 0
+              - ip_address                = "172.31.0.11"
+              - ip_prefix_length          = 24
+              - mac_address               = "ca:d5:0e:a5:60:13"
+              - network_name              = "disavery-wan"
+                # (2 unchanged attributes hidden)
+            },
+        ] -> (known after apply)
+      - privileged                                  = false -> null
+      - publish_all_ports                           = false -> null
+      ~ runtime                                     = "runc" -> (known after apply)
+      ~ security_opts                               = [] -> (known after apply)
+      ~ shm_size                                    = 64 -> (known after apply)
+      + stop_signal                                 = (known after apply)
+      ~ stop_timeout                                = 0 -> (known after apply)
+      - storage_opts                                = {} -> null
+      - sysctls                                     = {} -> null
+      - tmpfs                                       = {} -> null
+      - working_dir                                 = "/srv" -> null
+        # (21 unchanged attributes hidden)
+
+      ~ healthcheck (known after apply)
+
+      - upload { # forces replacement
+          # At least one attribute in this block is (or was) sensitive,
+          # so its contents will not be displayed.
+        }
+      + upload { # forces replacement
+          # At least one attribute in this block is (or was) sensitive,
+          # so its contents will not be displayed.
+        }
+
+        # (5 unchanged blocks hidden)
+    }
+
+  # local_file.inventory must be replaced
+-/+ resource "local_file" "inventory" {
+      ~ content              = <<-EOT # forces replacement
+            "all":
+              "children":
+                "active":
+                  "hosts":
+          -         "app-a": {}
+          +         "app-b": {}
+          -         "db-a": {}
+          +         "db-b": {}
+          -         "obj-a": {}
+          +         "obj-b": {}
+                "app":
+                  "hosts":
+                    "app-a":
+                      "site": "a"
+                      "wan_ip": "172.31.0.21"
+                      "zone_subnet": "172.31.1.0/24"
+                    "app-b":
+                      "site": "b"
+                      "wan_ip": "172.31.0.31"
+                      "zone_subnet": "172.31.2.0/24"
+                "db":
+                  "hosts":
+                    "db-a":
+                      "site": "a"
+                      "wan_ip": "172.31.0.22"
+                      "zone_subnet": "172.31.1.0/24"
+                    "db-b":
+                      "site": "b"
+                      "wan_ip": "172.31.0.32"
+                      "zone_subnet": "172.31.2.0/24"
+                "obj":
+                  "hosts":
+                    "obj-a":
+                      "site": "a"
+                      "wan_ip": "172.31.0.23"
+                      "zone_subnet": "172.31.1.0/24"
+                    "obj-b":
+                      "site": "b"
+                      "wan_ip": "172.31.0.33"
+                      "zone_subnet": "172.31.2.0/24"
+                "restores":
+                  "hosts": {}
+                "site_a":
+                  "hosts":
+                    "app-a": {}
+                    "db-a": {}
+                    "obj-a": {}
+                "site_b":
+                  "hosts":
+                    "app-b": {}
+                    "db-b": {}
+                    "obj-b": {}
+                "standby":
+                  "hosts": {}
+                "vaults":
+                  "hosts":
+                    "vault":
+                      "wan_ip": "172.31.0.40"
+                "webhooks":
+                  "hosts":
+                    "webhook":
+                      "wan_ip": "172.31.0.12"
+              "vars":
+          -     "active_site": "a"
+          +     "active_site": "b"
+                "standby_site": ""
+        EOT
+      ~ content_base64sha256 = "vVjGNUcORlM0igaKdn/HK7b/YWvCgDl0M3HsHivKsS8=" -> (known after apply)
+      ~ content_base64sha512 = "Z6gdVLKNzxpYgTI+P6m0emP8CTFYVh/a+jbfzJKJFgkSNcPR2KwvcbKMdhPygd2nSd6WDTTAC/6lGD/uESFs9g==" -> (known after apply)
+      ~ content_md5          = "523cc3b78605e7de432efe673eba8ed6" -> (known after apply)
+      ~ content_sha1         = "ef97d985029700be6dcd2f0490d142c339706ae7" -> (known after apply)
+      ~ content_sha256       = "bd58c635470e4653348a068a767fc72bb6ff616bc28039743371ec1e2bcab12f" -> (known after apply)
+      ~ content_sha512       = "67a81d54b28dcf1a5881323e3fa9b47a63fc093158561fdafa36dfcc928916091235c3d1d8ac2f71b28c7613f281dda749de960d34c00bfea5183fee11216cf6" -> (known after apply)
+      ~ id                   = "ef97d985029700be6dcd2f0490d142c339706ae7" -> (known after apply)
+        # (3 unchanged attributes hidden)
+    }
+
+Plan: 3 to add, 0 to change, 3 to destroy.
+local_file.inventory: Destroying... [id=ef97d985029700be6dcd2f0490d142c339706ae7]
+local_file.inventory: Destruction complete after 0s
+docker_container.dns: Destroying... [id=ac8e64563253188ff8a7472d810443aade408a8f62823319f8c6a0d3c9fa3c74]
+docker_container.edge: Destroying... [id=6b5b507f63c20d4e13c8af75bda85287acfcdb1ce04aa34a4425fd59baeefdbe]
+local_file.inventory: Creating...
+local_file.inventory: Creation complete after 1s [id=4563b6d209155e135f08402bac5cc5939e576d63]
+docker_container.dns: Destruction complete after 3s
+docker_container.dns: Creating...
+docker_container.edge: Destruction complete after 3s
+docker_container.edge: Creating...
+docker_container.dns: Creation complete after 1s [id=11122e6547912f75ecbbebc30dc3853838ae0dd9499dca71f23c199b7294095a]
+docker_container.edge: Creation complete after 0s [id=9888677419c497b77582b05b3a737de979d04b5de043cc8d12d346ca0eb8558e]
+
+Warning: Resource targeting is in effect
+
+You are creating a plan with the -target option, which means that the result
+of this plan may not represent all of the changes requested by the current
+configuration.
+
+The -target option is not for routine use, and is provided only for
+exceptional situations such as recovering from errors or mistakes, or when
+Terraform specifically suggests to use it as part of an error message.
+
+Warning: Applied changes may be incomplete
+
+The plan was created with the -target option in effect, so some changes
+requested in the configuration may have been ignored and the output values
+may not be fully updated. Run the following command to verify that no other
+changes are pending:
+    terraform plan
+
+Note that the -target option is not suitable for routine use, and is provided
+only for exceptional situations such as recovering from errors or mistakes,
+or when Terraform specifically suggests to use it as part of an error
+message.
+
+Apply complete! Resources: 3 added, 0 changed, 3 destroyed.
+
+Outputs:
+
+active_site = "a"
+ip = {
+  "alertmanager" = "172.31.0.14"
+  "app-a" = "172.31.0.21"
+  "app-b" = "172.31.0.31"
+  "db-a" = "172.31.0.22"
+  "db-b" = "172.31.0.32"
+  "dns" = "172.31.0.10"
+  "edge" = "172.31.0.11"
+  "obj-a" = "172.31.0.23"
+  "obj-b" = "172.31.0.33"
+  "prometheus" = "172.31.0.13"
+  "restore" = "172.31.0.50"
+  "vault" = "172.31.0.40"
+  "webhook" = "172.31.0.12"
+}
+# end 2026-10-08T14:20:05.419528786Z ok

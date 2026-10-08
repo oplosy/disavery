@@ -1,0 +1,5 @@
+# step declare-disaster (manual) in phase decide
+# start 2026-10-08T14:16:34.34556208Z
+# attempt 1
+decision "Site a and the age key are gone. Retrieve the key from escrow and fail over to site b?": continue (automatic: true)
+# end 2026-10-08T14:17:04.345854787Z ok

@@ -1,0 +1,5 @@
+# step record-deploy (ssh) in phase inject
+# start 2026-10-08T14:24:08.418484568Z
+# attempt 1
+{"at" : "2026-10-08 14:24:08.648434+00", "paid" : "3665"}
+# end 2026-10-08T14:24:08.652153431Z ok

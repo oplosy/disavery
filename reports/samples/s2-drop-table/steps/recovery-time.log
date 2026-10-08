@@ -1,0 +1,8 @@
+# step recovery-time (check) in phase verify
+# start 2026-10-08T14:16:04.019547828Z
+# attempt 1
+pass: actual RTO 1m32.001s (target 15m0s)
+  metric failed_probes = 183
+  metric rto_seconds = 92.000873106
+  metric probes = 189
+# end 2026-10-08T14:16:06.02447706Z ok

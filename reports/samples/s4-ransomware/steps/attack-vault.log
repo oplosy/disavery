@@ -1,0 +1,20 @@
+# step attack-vault (run) in phase inject
+# start 2026-10-08T14:26:25.176394663Z
+# attempt 1
+delete-version           pgbackrest  denied 8276 of 8276 map[AccessDenied:8276]
+bypass-governance        pgbackrest  denied 1 of 1 map[AccessDenied:1]
+shorten-retention        pgbackrest  denied 1 of 1 map[InvalidRequest:1]
+remove-default-retention pgbackrest  denied 1 of 1 map[AccessDenied:1]
+suspend-versioning       pgbackrest  denied 1 of 1 map[AccessDenied:1]
+expire-everything        pgbackrest  denied 1 of 1 map[AccessDenied:1]
+delete-bucket            pgbackrest  denied 1 of 1 map[AccessDenied:1]
+delete-version           attachments denied 67386 of 67386 map[AccessDenied:67386]
+bypass-governance        attachments denied 1 of 1 map[AccessDenied:1]
+shorten-retention        attachments denied 1 of 1 map[AccessDenied:1]
+remove-default-retention attachments denied 1 of 1 map[AccessDenied:1]
+suspend-versioning       attachments denied 1 of 1 map[AccessDenied:1]
+expire-everything        attachments denied 1 of 1 map[AccessDenied:1]
+delete-bucket            attachments denied 1 of 1 map[AccessDenied:1]
+hid 14625 objects behind delete markers
+{"started_at":"2026-10-08T14:26:25.198389765Z","attempts":[{"action":"delete-version","bucket":"pgbackrest","tried":8276,"denied":8276,"codes":{"AccessDenied":8276}},{"action":"bypass-governance","bucket":"pgbackrest","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"shorten-retention","bucket":"pgbackrest","tried":1,"denied":1,"codes":{"InvalidRequest":1}},{"action":"remove-default-retention","bucket":"pgbackrest","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"suspend-versioning","bucket":"pgbackrest","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"expire-everything","bucket":"pgbackrest","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"delete-bucket","bucket":"pgbackrest","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"delete-version","bucket":"attachments","tried":67386,"denied":67386,"codes":{"AccessDenied":67386}},{"action":"bypass-governance","bucket":"attachments","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"shorten-retention","bucket":"attachments","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"remove-default-retention","bucket":"attachments","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"suspend-versioning","bucket":"attachments","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"expire-everything","bucket":"attachments","tried":1,"denied":1,"codes":{"AccessDenied":1}},{"action":"delete-bucket","bucket":"attachments","tried":1,"denied":1,"codes":{"AccessDenied":1}}],"hidden":14625}
+# end 2026-10-08T14:26:46.50821229Z ok

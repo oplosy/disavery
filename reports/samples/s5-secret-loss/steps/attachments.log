@@ -1,0 +1,9 @@
+# step attachments (check) in phase verify
+# start 2026-10-08T14:20:19.124197867Z
+# attempt 1
+pass: all 3597 documents have their attachment in obj-b; 0 orphan object(s)
+  metric objects = 6037
+  metric missing = 0
+  metric orphans = 0
+  metric documents = 3597
+# end 2026-10-08T14:20:19.896830722Z ok

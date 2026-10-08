@@ -1,0 +1,12 @@
+# step archive-repair (ssh) in phase recover
+# start 2026-10-08T14:16:03.638737925Z
+# attempt 1
+2026-10-08 14:16:03.840 P00   INFO: check command begin 2.59.3: --exec-id=7024-9f8c671a --log-level-console=info --log-level-file=detail --pg1-path=/var/lib/postgresql/16/main --repo2-cipher-pass=<redacted> --repo2-cipher-type=aes-256-cbc --repo1-path=/var/lib/pgbackrest --repo2-path=/repo --repo2-s3-bucket=pgbackrest --repo2-s3-endpoint=vault --repo2-s3-key=<redacted> --repo2-s3-key-secret=<redacted> --repo2-s3-region=us-east-1 --repo2-s3-uri-style=path --repo2-storage-ca-file=/usr/local/share/ca-certificates/disavery-ca.crt --repo2-storage-port=9000 --repo2-type=s3 --stanza=main
+2026-10-08 14:16:03.846 P00   INFO: check repo1 configuration (primary)
+2026-10-08 14:16:03.847 P00   INFO: check repo2 configuration (primary)
+2026-10-08 14:16:03.876 P00   INFO: check repo1 archive for WAL (primary)
+2026-10-08 14:16:03.976 P00   INFO: WAL segment 00000019000000010000004C successfully archived to '/var/lib/pgbackrest/archive/main/16-1/0000001900000001/00000019000000010000004C-39d4cc9f196e6f917b1329a3bea2c9d36e3a1e24.zst' on repo1
+2026-10-08 14:16:03.976 P00   INFO: check repo2 archive for WAL (primary)
+2026-10-08 14:16:03.977 P00   INFO: WAL segment 00000019000000010000004C successfully archived to '/repo/archive/main/16-1/0000001900000001/00000019000000010000004C-39d4cc9f196e6f917b1329a3bea2c9d36e3a1e24.zst' on repo2
+2026-10-08 14:16:03.977 P00   INFO: check command end: completed successfully (138ms)
+# end 2026-10-08T14:16:03.980177566Z ok

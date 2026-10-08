@@ -18,11 +18,19 @@ import (
 // startMinio starts a MinIO server for an integration test.
 func startMinio(t *testing.T) *minio.Client {
 	t.Helper()
+	_, c := runMinio(t)
+	return c
+}
+
+// runMinio starts a MinIO server with the given options and returns the
+// container too, for tests that run mc inside it.
+func runMinio(t *testing.T, opts ...testcontainers.ContainerCustomizer) (*tcminio.MinioContainer, *minio.Client) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("integration test: needs Docker")
 	}
 	ctx := context.Background()
-	ctr, err := tcminio.Run(ctx, "disavery/minio:local") // built by `make minio-image`
+	ctr, err := tcminio.Run(ctx, "disavery/minio:local", opts...) // built by `make minio-image`
 	testcontainers.CleanupContainer(t, ctr)
 	if err != nil {
 		t.Fatalf("start minio (run `make minio-image` first): %v", err)
@@ -32,7 +40,7 @@ func startMinio(t *testing.T) *minio.Client {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return c
+	return ctr, c
 }
 
 // TestCopyFromLockedBucket copies from a bucket with Object Lock and default
@@ -72,7 +80,7 @@ func TestCopyFromLockedBucket(t *testing.T) {
 	src, dst := objcopy.Store{Client: c, Bucket: "vault"}, objcopy.Store{Client: c, Bucket: "site"}
 	cctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	st, err := objcopy.Copy(cctx, src, dst, "documents/", 4)
+	st, err := objcopy.Copy(cctx, src, dst, "documents/", 4, nil)
 	if err != nil || st.Copied != 1 || st.Skipped != 1 {
 		t.Fatalf("stats %+v err %v", st, err)
 	}
@@ -90,7 +98,7 @@ func TestCopyFromLockedBucket(t *testing.T) {
 			t.Fatalf("%s must not be copied", key)
 		}
 	}
-	if st, err := objcopy.Copy(cctx, src, dst, "documents/", 4); err != nil || st.Copied != 0 || st.Skipped != 2 {
+	if st, err := objcopy.Copy(cctx, src, dst, "documents/", 4, nil); err != nil || st.Copied != 0 || st.Skipped != 2 {
 		t.Fatalf("second copy %+v %v", st, err)
 	}
 }

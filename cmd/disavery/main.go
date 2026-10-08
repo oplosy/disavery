@@ -331,7 +331,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 			return fail(err)
 		}
 		st, err := p.lab(b, "drill", nil, stdout).CopyAttachments(ctx, *from, *to)
-		fmt.Fprintf(stdout, "copied %d, already present %d\n", st.Copied, st.Skipped)
+		fmt.Fprintf(stdout, "copied %d (%d as vault replicas), already present %d\n", st.Copied, st.Replicas, st.Skipped)
 		if err != nil {
 			return fail(err)
 		}

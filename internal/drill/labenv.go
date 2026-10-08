@@ -428,17 +428,28 @@ func (l *LabEnv) store(ctx context.Context, name string) (verify.ObjectLister, e
 
 // CopyAttachments copies the current attachments from one store to another
 // (vault or obj-<site>): filling a pilot-light site from the vault, or a
-// returning site from the DR site before a switchover.
+// returning site from the DR site before a switchover. Versions the vault
+// already holds are written as replicas, so the target's replication does not
+// send them to the vault again (ADR 0010).
 func (l *LabEnv) CopyAttachments(ctx context.Context, from, to string) (objcopy.Stats, error) {
-	src, err := l.minioClient(ctx, from)
+	c, err := l.minioClient(ctx, from)
 	if err != nil {
 		return objcopy.Stats{}, err
 	}
-	dst, err := l.minioClient(ctx, to)
+	src := objcopy.Store{Client: c, Bucket: "attachments"}
+	c, err = l.minioClient(ctx, to)
 	if err != nil {
 		return objcopy.Stats{}, err
 	}
-	return objcopy.Copy(ctx, objcopy.Store{Client: src, Bucket: "attachments"}, objcopy.Store{Client: dst, Bucket: "attachments"}, "documents/", 8)
+	dst := objcopy.Store{Client: c, Bucket: "attachments"}
+	vault := src
+	if from != "vault" {
+		if c, err = l.minioClient(ctx, "vault"); err != nil {
+			return objcopy.Stats{}, err
+		}
+		vault = objcopy.Store{Client: c, Bucket: "attachments"}
+	}
+	return objcopy.Copy(ctx, src, dst, "documents/", 8, &vault)
 }
 
 // RewindAttachments makes a site store's attachments current as of a point

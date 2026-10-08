@@ -3,18 +3,57 @@
 # retention to replicated objects, so replicas from the sites arrive unlocked.
 # Lock every version that has no retention yet; locked versions are skipped so
 # their retention is never extended.
+#
+# Reading the retention of every version takes over a minute once the vault
+# holds about 100,000 versions, longer than the interval. So a run only checks
+# versions modified since the previous successful run (with an overlap for
+# replication lag), found with one fast listing, and a full sweep runs every
+# {{ minio_vault_full_sweep_seconds }} s for replicas that carry an older
+# modification time (existing-object replication). See ADR 0004.
 set -euo pipefail
+
+state=/var/lib/vault-lock-sweeper
+mkdir -p "$state"
+start=$(date -u +%s)
+last=$(cat "$state/last-run" 2>/dev/null || echo 0)
+last_full=$(cat "$state/last-full" 2>/dev/null || echo 0)
+full=false
+(( start - last_full >= {{ minio_vault_full_sweep_seconds }} )) && full=true
+since=$(( last - {{ minio_vault_sweep_overlap_seconds }} ))
+
+# Locks one version (version id, mc path) unless it already has retention.
+lock() {
+  local mode
+  mode=$(mc retention info --version-id "$1" --json "$2" | jq -r '.mode // ""')
+  if [[ -z $mode ]]; then
+    mc retention set --version-id "$1" compliance {{ vault_retention_days }}d "$2" >/dev/null
+  fi
+}
+export -f lock
 
 status=0
 for bucket in {{ minio_vault_replicated_buckets | join(' ') }}; do
-  info=$(mc retention info --recursive --versions --json "local/$bucket")
-  if jq -se 'any(.[]; .status != "success")' <<<"$info" >/dev/null; then
-    jq -r 'select(.status != "success") | "cannot read retention: \(.urlpath // "?"): \(.error)"' <<<"$info" >&2
+  if $full; then
+    info=$(mc retention info --recursive --versions --json "local/$bucket")
+    if jq -se 'any(.[]; .status != "success")' <<<"$info" >/dev/null; then
+      jq -r 'select(.status != "success") | "cannot read retention: \(.urlpath // "?"): \(.error)"' <<<"$info" >&2
+      status=1
+    fi
+    candidates=$(jq -r 'select(.status == "success" and .mode == "") | [.versionID, .urlpath] | @tsv' <<<"$info")
+  else
+    candidates=$(mc ls --recursive --versions --json "local/$bucket" | jq -r --arg bucket "$bucket" --argjson since "$since" '
+      select(.status == "success" and (.isDeleteMarker | not)
+             and (.lastModified | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) >= $since)
+      | [.versionId, "local/\($bucket)/\(.key)"] | @tsv')
+  fi
+  # Each version is locked by its own mc call; run them in parallel.
+  if ! xargs -r -P {{ minio_vault_sweep_workers }} -L 1 bash -c 'lock "$0" "$1"' <<<"$candidates"; then
     status=1
   fi
-  while IFS=$'\t' read -r version path; do
-    [[ -n $version ]] || continue
-    mc retention set --version-id "$version" compliance {{ vault_retention_days }}d "$path"
-  done < <(jq -r 'select(.status == "success" and .mode == "") | [.versionID, .urlpath] | @tsv' <<<"$info")
 done
+
+if (( status == 0 )); then
+  echo "$start" > "$state/last-run"
+  if $full; then echo "$start" > "$state/last-full"; fi
+fi
 exit "$status"

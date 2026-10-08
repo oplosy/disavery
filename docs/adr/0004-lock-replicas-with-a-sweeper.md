@@ -47,4 +47,5 @@ run of about 1.5 minutes.
 
 The growth itself comes from copying attachments back into a site store that
 replicates to the vault (S4, S5, S7): every copy arrives in the vault as one
-more version of an object it already holds.
+more version of an object it already holds. [ADR 0010](0010-copy-attachments-back-as-replicas.md)
+stops it.

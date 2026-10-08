@@ -29,6 +29,7 @@ import (
 	"github.com/oplosy/disavery/internal/report"
 	"github.com/oplosy/disavery/internal/restorepoint"
 	"github.com/oplosy/disavery/internal/runbook"
+	"github.com/oplosy/disavery/internal/vault"
 	"github.com/oplosy/disavery/internal/verify"
 )
 
@@ -95,7 +96,9 @@ func (l *LabEnv) Preflight(ctx context.Context) []report.Check {
 		{"app-ready", l.appReady},
 		{"backups-fresh", func(ctx context.Context) (string, error) { return l.backupsFresh(ctx, pf.MaxBackupAge.D()) }},
 		{"wal-archive", func(ctx context.Context) (string, error) { return l.walArchive(ctx, pf.MaxArchiveAge.D()) }},
-		{"canary-writing", func(context.Context) (string, error) { return l.canaryWriting(pf.MaxCanarySilence.D()) }},
+		{"canary-writing", func(ctx context.Context) (string, error) {
+			return l.canaryWriting(ctx, pf.MaxCanarySilence.D(), pf.MinCanaryHistory.D())
+		}},
 		{"vault-reachable", l.vaultReachable},
 		{"escrow-present", func(context.Context) (string, error) { return l.escrowPresent() }},
 		{"no-firing-alerts", l.noFiringAlerts},
@@ -211,7 +214,11 @@ FROM pg_stat_archiver`)
 
 func (l *LabEnv) journal() ([]canary.Entry, error) { return canary.ReadJournal(l.Env.JournalPath) }
 
-func (l *LabEnv) canaryWriting(maxSilence time.Duration) (string, error) {
+// canaryWriting checks the canary writes now, has written steadily for
+// `history`, and production holds all of it. Without the history, a drill
+// started right after another drill's recovery would find no surviving write
+// between the two incidents and charge the earlier loss to this one.
+func (l *LabEnv) canaryWriting(ctx context.Context, maxSilence, history time.Duration) (string, error) {
 	entries, err := l.journal()
 	if err != nil {
 		return "", err
@@ -219,12 +226,31 @@ func (l *LabEnv) canaryWriting(maxSilence time.Duration) (string, error) {
 	if len(entries) == 0 {
 		return "", fmt.Errorf("canary journal %s is empty; is the canary service running?", l.Env.JournalPath)
 	}
+	now := l.Env.Now()
 	last := entries[len(entries)-1]
-	silence := l.Env.Now().Sub(last.Acked)
+	silence := now.Sub(last.Acked)
 	if silence > maxSilence {
 		return "", fmt.Errorf("last acknowledged canary write was %s ago (limit %s)", silence.Round(time.Second), maxSilence)
 	}
-	return fmt.Sprintf("last acknowledged canary write %s ago (seq %d)", silence.Round(time.Millisecond), last.Seq), nil
+	window, err := canary.Steady(entries, now.Add(-history), now, maxSilence)
+	if err != nil {
+		return "", fmt.Errorf("%w; a drill needs %s of steady writes, try again later", err, history)
+	}
+	held, err := l.survivors(ctx, window[0].Seq)
+	if err != nil {
+		return "", err
+	}
+	missing := 0
+	for _, e := range window {
+		if !held[e.Seq] {
+			missing++
+		}
+	}
+	if missing > 0 {
+		return "", fmt.Errorf("production lacks %d of the %d canary writes of the last %s", missing, len(window), history)
+	}
+	return fmt.Sprintf("last acknowledged canary write %s ago (seq %d); %d writes in the last %s, all in production",
+		silence.Round(time.Millisecond), last.Seq, len(window), history), nil
 }
 
 func (l *LabEnv) vaultReachable(ctx context.Context) (string, error) {
@@ -289,10 +315,11 @@ func (l *LabEnv) Checks(rc RunContext) verify.Registry {
 	return verify.Registry{
 		"amcheck":               verify.Amcheck{Remote: l.Env.SSH, Bin: "/usr/lib/postgresql/16/bin/pg_amcheck"},
 		"business-rules":        verify.Rules{SQL: sql},
+		"query":                 verify.Query{SQL: sql},
 		"db-object-consistency": verify.Consistency{SQL: sql, Stores: l.store},
 		"pitr":                  verify.PITR{SQL: sql, Journal: l.journal, Tolerance: l.BIA.RestoreTest.PITRTolerance.D()},
 		"canary":                verify.LiveRPO{Journal: l.journal, Survivors: l.survivors, Target: rc.Targets.RPO},
-		"prober":                verify.LiveRTO{Samples: samples, Target: rc.Targets.RTO, Streak: 5},
+		"prober":                verify.LiveRTO{Samples: samples, Target: rc.Targets.RTO, Streak: 5, Settle: 15 * time.Second, Poll: 500 * time.Millisecond},
 		"replication":           verify.Replication{SQL: l.psql("postgres")},
 		"topology":              verify.Topology{Current: l.topology},
 		"store-sync":            verify.StoreSync{Stores: l.store},
@@ -301,48 +328,94 @@ func (l *LabEnv) Checks(rc RunContext) verify.Registry {
 	}
 }
 
-// minioClient opens an attachment store: "vault" with the production writer's
-// (read-capable) credentials, or a site store such as "obj-a" as its root.
+// vaultIdentities are the vault users and their secrets: drills read through
+// the read-only user (a restore needs no write access), the S4 attack uses the
+// production writer's key, and repairs need the vault administrator.
+var vaultIdentities = map[string][2]string{
+	"reader": {"vault_reader_access_key", "vault_reader_secret_key"},
+	"writer": {"vault_writer_access_key", "vault_writer_secret_key"},
+	"admin":  {"vault_root_user", "vault_root_password"},
+}
+
+// minioClient opens an attachment store: "vault" as the read-only user, or a
+// site store such as "obj-a" as its root.
 func (l *LabEnv) minioClient(ctx context.Context, name string) (*minio.Client, error) {
-	s, err := l.Env.Secrets(ctx)
-	if err != nil {
-		return nil, err
-	}
-	creds := func(user, pass string) (*credentials.Credentials, error) {
-		u, err := s.String("minio", user)
-		if err != nil {
-			return nil, err
-		}
-		p, err := s.String("minio", pass)
-		if err != nil {
-			return nil, err
-		}
-		return credentials.NewStaticV4(u, p, ""), nil
-	}
 	switch {
 	case name == "vault":
-		c, err := creds("vault_writer_access_key", "vault_writer_secret_key")
-		if err != nil {
-			return nil, err
-		}
-		ca, err := s.String("tls", "ca_crt")
-		if err != nil {
-			return nil, err
-		}
-		pool := x509.NewCertPool()
-		if !pool.AppendCertsFromPEM([]byte(ca)) {
-			return nil, errors.New("tls.ca_crt holds no certificate")
-		}
-		tr := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}
-		return minio.New(l.Env.VaultEndpoint, &minio.Options{Creds: c, Secure: true, Transport: tr})
+		return l.vaultClient(ctx, "reader")
 	case strings.HasPrefix(name, "obj-"):
-		c, err := creds("site_root_user", "site_root_password")
+		c, err := l.creds(ctx, "site_root_user", "site_root_password")
 		if err != nil {
 			return nil, err
 		}
 		return minio.New(name+":9000", &minio.Options{Creds: c})
 	}
 	return nil, fmt.Errorf("unknown attachment store %q (vault or obj-<site>)", name)
+}
+
+// vaultClient opens the vault as one of vaultIdentities.
+func (l *LabEnv) vaultClient(ctx context.Context, identity string) (*minio.Client, error) {
+	keys, ok := vaultIdentities[identity]
+	if !ok {
+		return nil, fmt.Errorf("unknown vault identity %q", identity)
+	}
+	c, err := l.creds(ctx, keys[0], keys[1])
+	if err != nil {
+		return nil, err
+	}
+	s, err := l.Env.Secrets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ca, err := s.String("tls", "ca_crt")
+	if err != nil {
+		return nil, err
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM([]byte(ca)) {
+		return nil, errors.New("tls.ca_crt holds no certificate")
+	}
+	tr := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}
+	return minio.New(l.Env.VaultEndpoint, &minio.Options{Creds: c, Secure: true, Transport: tr})
+}
+
+// creds reads a MinIO user and password from the minio section of the secrets.
+func (l *LabEnv) creds(ctx context.Context, user, pass string) (*credentials.Credentials, error) {
+	s, err := l.Env.Secrets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	u, err := s.String("minio", user)
+	if err != nil {
+		return nil, err
+	}
+	p, err := s.String("minio", pass)
+	if err != nil {
+		return nil, err
+	}
+	return credentials.NewStaticV4(u, p, ""), nil
+}
+
+// vaultBuckets are the vault's Object Lock buckets.
+var vaultBuckets = []string{"pgbackrest", "attachments"}
+
+// AttackVault attacks the vault with the production writer's key (S4).
+func (l *LabEnv) AttackVault(ctx context.Context) (vault.Evidence, error) {
+	c, err := l.vaultClient(ctx, "writer")
+	if err != nil {
+		return vault.Evidence{}, err
+	}
+	return vault.Attack(ctx, c, vaultBuckets, l.Env.Now)
+}
+
+// UndeleteVault removes, as the vault administrator, the delete markers
+// placed since a point in time (S4).
+func (l *LabEnv) UndeleteVault(ctx context.Context, since time.Time) (int, error) {
+	c, err := l.vaultClient(ctx, "admin")
+	if err != nil {
+		return 0, err
+	}
+	return vault.Undelete(ctx, c, vaultBuckets, since)
 }
 
 func (l *LabEnv) store(ctx context.Context, name string) (verify.ObjectLister, error) {
@@ -366,6 +439,19 @@ func (l *LabEnv) CopyAttachments(ctx context.Context, from, to string) (objcopy.
 		return objcopy.Stats{}, err
 	}
 	return objcopy.Copy(ctx, objcopy.Store{Client: src, Bucket: "attachments"}, objcopy.Store{Client: dst, Bucket: "attachments"}, "documents/", 8)
+}
+
+// RewindAttachments makes a site store's attachments current as of a point
+// in time (S3): what a bad migration deleted or overwrote comes back.
+func (l *LabEnv) RewindAttachments(ctx context.Context, store string, at time.Time) (objcopy.RewindStats, error) {
+	if !strings.HasPrefix(store, "obj-") {
+		return objcopy.RewindStats{}, fmt.Errorf("can only rewind a site store (obj-<site>), not %q", store)
+	}
+	c, err := l.minioClient(ctx, store)
+	if err != nil {
+		return objcopy.RewindStats{}, err
+	}
+	return objcopy.Rewind(ctx, objcopy.Store{Client: c, Bucket: "attachments"}, "documents/", at)
 }
 
 // survivors returns the canary writes from seq `from` on that production holds.
@@ -403,8 +489,10 @@ func (l *LabEnv) canarySeqs(ctx context.Context, from int64) ([]int64, error) {
 // canary coverage and the archive's edge.
 const restorePointMargin = 10 * time.Second
 
-// PickRestorePoint chooses S6's random backup set and target (see restorepoint.Pick).
-func (l *LabEnv) PickRestorePoint(ctx context.Context, repo int, seed int64) (restorepoint.Point, error) {
+// PickRestorePoint chooses S6's random backup set and target (see
+// restorepoint.Pick) outside the given drill windows (DisruptiveWindows) and
+// away from writes production lost.
+func (l *LabEnv) PickRestorePoint(ctx context.Context, repo int, seed int64, drills []restorepoint.Interval) (restorepoint.Point, error) {
 	info, err := l.backupInfo(ctx)
 	if err != nil {
 		return restorepoint.Point{}, err
@@ -448,7 +536,27 @@ func (l *LabEnv) PickRestorePoint(ctx context.Context, repo int, seed int64) (re
 	if !ok {
 		return restorepoint.Point{}, errors.New("the canary journal does not cover production")
 	}
-	return restorepoint.Pick(backups, coverage, archived, restorePointMargin, nil, seed)
+	// A write production lost (a crash, or a rewind that abandoned its
+	// timeline) is in the journal but in no restore: the PITR check would
+	// count it as missing for any target within its window after the write.
+	held := make(map[int64]bool, len(seqs))
+	for _, s := range seqs {
+		held[s] = true
+	}
+	excluded := drills
+	for _, e := range entries {
+		if e.Seq >= seqs[0] && !held[e.Seq] {
+			excluded = append(excluded, restorepoint.Interval{From: e.Acked, To: e.Acked.Add(verify.PITRWindow + l.BIA.RestoreTest.PITRTolerance.D())})
+		}
+	}
+	// Nor while the canary was silent (an outage outside any drill): there is
+	// no evidence around such a target.
+	for i := 1; i < len(entries); i++ {
+		if prev := entries[i-1]; entries[i].Sent.Sub(prev.Acked) > l.BIA.Preflight.MaxCanarySilence.D() {
+			excluded = append(excluded, restorepoint.Interval{From: prev.Acked, To: entries[i].Sent})
+		}
+	}
+	return restorepoint.Pick(backups, coverage, archived, restorePointMargin, excluded, seed)
 }
 
 // ProductionChecks verifies production as it is now: integrity, business

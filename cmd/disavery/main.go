@@ -38,6 +38,9 @@ commands:
   env reset [--tier T]                     return the lab to a tier's baseline topology
   env set key=value...                     change the topology (active_site, standby_site, site_b_enabled, ...)
   attachments copy --from S --to S         copy current attachments between stores (vault, obj-<site>)
+  attachments rewind --store S --to T      make a site store's attachments current as of time T
+  vault attack                             attack the vault with the production writer's key (S4); JSON evidence
+  vault undelete --since T                 remove delete markers placed since T, as the vault administrator
   canary run                               write canary records (long-running service)
   restore-point [--repo 2] [--seed N]      choose a random backup set and PITR target (JSON)
 
@@ -97,7 +100,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return exitError
 	}
 	cmd := args[0]
-	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || cmd == "attachments" || (cmd == "report" && (args[1] == "trend" || args[1] == "tiers"))) {
+	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || cmd == "attachments" || cmd == "vault" || (cmd == "report" && (args[1] == "trend" || args[1] == "tiers"))) {
 		cmd += " " + args[1]
 		args = args[1:]
 	}
@@ -334,6 +337,75 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 		return 0
 
+	case "attachments rewind":
+		store := fs.String("store", "", "site store to rewind: obj-<site>")
+		to := fs.String("to", "", "point in time (RFC 3339 or PostgreSQL timestamptz text)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		if *store == "" || *to == "" {
+			return fail(fmt.Errorf("--store and --to are required"))
+		}
+		at, err := verify.ParseTime(*to)
+		if err != nil {
+			return fail(err)
+		}
+		b, err := bia.Load(p.join(p.bia))
+		if err != nil {
+			return fail(err)
+		}
+		st, err := p.lab(b, "drill", nil, stdout).RewindAttachments(ctx, *store, at)
+		fmt.Fprintf(stdout, "restored %d, unchanged %d, created later %d\n", st.Restored, st.Unchanged, st.Newer)
+		if err != nil {
+			return fail(err)
+		}
+		return 0
+
+	case "vault attack":
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		b, err := bia.Load(p.join(p.bia))
+		if err != nil {
+			return fail(err)
+		}
+		ev, err := p.lab(b, "drill", nil, stdout).AttackVault(ctx)
+		for _, a := range ev.Attempts {
+			fmt.Fprintf(stderr, "%-24s %-11s denied %d of %d %v\n", a.Action, a.Bucket, a.Denied, a.Tried, a.Codes)
+		}
+		fmt.Fprintf(stderr, "hid %d objects behind delete markers\n", ev.Hidden)
+		if err != nil {
+			return fail(err)
+		}
+		if err := json.NewEncoder(stdout).Encode(ev); err != nil {
+			return fail(err)
+		}
+		if breached := ev.Breached(); len(breached) > 0 {
+			fmt.Fprintf(stderr, "disavery vault attack: the vault allowed %s\n", strings.Join(breached, ", "))
+			return report.Failed.ExitCode()
+		}
+		return 0
+
+	case "vault undelete":
+		since := fs.String("since", "", "remove delete markers placed at or after this time (RFC 3339 or PostgreSQL timestamptz text)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		at, err := verify.ParseTime(*since)
+		if err != nil {
+			return fail(fmt.Errorf("--since: %w", err))
+		}
+		b, err := bia.Load(p.join(p.bia))
+		if err != nil {
+			return fail(err)
+		}
+		n, err := p.lab(b, "drill", nil, stdout).UndeleteVault(ctx, at)
+		fmt.Fprintf(stdout, "removed %d delete markers\n", n)
+		if err != nil {
+			return fail(err)
+		}
+		return 0
+
 	case "canary run":
 		interval := fs.Duration("interval", time.Second, "time between writes")
 		if err := fs.Parse(args[1:]); err != nil {
@@ -357,7 +429,11 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		if err != nil {
 			return fail(err)
 		}
-		point, err := p.lab(b, "drill", nil, stdout).PickRestorePoint(ctx, *repo, *seed)
+		history, err := report.ReadHistory(filepath.Join(p.join(p.reports), "history.jsonl"))
+		if err != nil {
+			return fail(err)
+		}
+		point, err := p.lab(b, "drill", nil, stdout).PickRestorePoint(ctx, *repo, *seed, drill.DisruptiveWindows(history, b))
 		if err != nil {
 			return fail(err)
 		}

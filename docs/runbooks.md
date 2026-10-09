@@ -85,3 +85,10 @@ captured values, and the built-ins `scenario`, `tier`, `env`, `run_id`,
 
 Runbooks with an `inject` phase only run with `--yes` (or `CI=true`), and only
 when the Terraform workspace and every node's `disavery.env` label match `--env`.
+
+A drill whose preflight fails never starts: it ends as `ERROR`, says
+`preflight failed (...)` on its output and is marked `refused` in
+`history.jsonl`. Trends, the tier comparison and the badge do not count it as a
+run, it is not pushed to the Pushgateway, and the random restore test does not
+treat its window as an incident. `report trend` shows `ERROR (refused)` only
+when nothing ran after it.

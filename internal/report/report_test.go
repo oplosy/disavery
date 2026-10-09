@@ -154,6 +154,33 @@ func TestHistoryAndTrend(t *testing.T) {
 	}
 }
 
+// TestTrendSkipsRefusedDrills: a drill refused by its preflight changed
+// nothing, so it is no run; it only shows as the last result when nothing ran
+// after it.
+func TestTrendSkipsRefusedDrills(t *testing.T) {
+	m := []report.Measurement{{Name: "downtime", TargetSeconds: 900, ActualSeconds: 3, Met: true}}
+	entries := []report.HistoryEntry{
+		{Scenario: "s7-failback", Tier: "pilot-light", Result: report.Error, Refused: true, StartedAt: at(0)},
+		{Scenario: "s7-failback", Tier: "pilot-light", Result: report.Error, Refused: true, StartedAt: at(20)},
+		{Scenario: "s7-failback", Tier: "pilot-light", Result: report.Pass, StartedAt: at(40), Measurements: m},
+		{Scenario: "s2-drop-table", Result: report.Pass, StartedAt: at(0), Measurements: m},
+		{Scenario: "s2-drop-table", Result: report.Error, Refused: true, StartedAt: at(600)},
+	}
+	table := report.RenderTrend(report.Trend(entries))
+	for _, want := range []string{
+		"| s2-drop-table | — | 1 | 1 | ERROR (refused) | 2026-10-07 12:10 | downtime: median 3s, max 3s, target 15m0s, met 1/1 |",
+		"| s7-failback | pilot-light | 1 | 1 | PASS | 2026-10-07 12:00 | downtime: median 3s, max 3s, target 15m0s, met 1/1 |",
+	} {
+		if !strings.Contains(table, want) {
+			t.Fatalf("missing %q in\n%s", want, table)
+		}
+	}
+	rows := report.CompareTiers(entries[:3], "s7-failback", []report.TierSpec{{Name: "pilot-light"}})
+	if rows[0].Runs != 1 || rows[0].Passed != 1 {
+		t.Fatalf("tiers %+v", rows[0])
+	}
+}
+
 func TestCompareTiers(t *testing.T) {
 	entry := func(tier string, rpo, rto float64, result report.Result) report.HistoryEntry {
 		return report.HistoryEntry{Scenario: "s1-site-loss", Tier: tier, Result: result, StartedAt: t0, Measurements: []report.Measurement{

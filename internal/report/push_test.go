@@ -53,6 +53,11 @@ func TestPush(t *testing.T) {
 	if err := report.Push(context.Background(), srv.Client(), srv.URL+"/", failed); err != nil {
 		t.Fatal(err)
 	}
+	// A drill refused by its preflight changed nothing and is not pushed.
+	refused := &report.Report{Scenario: "s7-failback", Tier: "pilot-light", Result: report.Error, Refused: true, StartedAt: at(0), FinishedAt: at(1)}
+	if err := report.Push(context.Background(), srv.Client(), srv.URL, refused); err != nil {
+		t.Fatal(err)
+	}
 	want := []string{
 		"/metrics/job/disavery_drill/scenario/s6-restore-test/tier/none",
 		"/metrics/job/disavery_drill_success/scenario/s6-restore-test/tier/none",

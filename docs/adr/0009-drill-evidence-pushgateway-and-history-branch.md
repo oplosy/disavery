@@ -39,3 +39,16 @@ nothing that lives in the lab survives the run.
   its date, which makes staleness visible to a reader.
 - The history branch grows by a few lines per night; at this rate it needs no
   pruning in v1.
+
+## Update 2026-10-09: refused drills are not runs
+The nightly programme retries a drill whose preflight fails, typically S7
+started while S1's recovery is still settling. Each refused attempt was an
+`ERROR` line in the history, so the published trend showed S7 as "3 runs,
+1 passed" every night although every drill that started passed, and each retry
+replaced the dashboard's last run with `ERROR` for a moment.
+
+A refused drill is now marked `refused` in `report.json` and `history.jsonl`.
+It is not pushed, and trends, the tier comparison and the badge skip it; the
+trend shows `ERROR (refused)` as the last result only when nothing ran after
+it, so a drill that never gets past preflight stays visible. Lines written
+before this change carry no mark and still count as runs.

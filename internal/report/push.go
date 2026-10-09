@@ -59,8 +59,13 @@ func (r *Report) SuccessMetrics() string {
 }
 
 // Push sends the report to a Pushgateway at base (e.g. http://pushgateway:9091):
-// the "last run" group always, the "last success" group only for a pass.
+// the "last run" group always, the "last success" group only for a pass. A
+// drill refused by its preflight changed nothing and is not pushed, so a drill
+// programme's retries do not flash ERROR on the dashboard.
 func Push(ctx context.Context, client *http.Client, base string, r *Report) error {
+	if r.Refused {
+		return nil
+	}
 	tier := r.Tier
 	if tier == "" {
 		tier = "none" // the Pushgateway rejects empty grouping labels in the path

@@ -10,14 +10,15 @@ type Badge struct {
 
 var badgeColors = map[Result]string{Pass: "brightgreen", MissedTarget: "yellow", Failed: "red", Error: "lightgrey"}
 
-// NewBadge describes the newest run of a scenario in the history, e.g.
+// NewBadge describes the newest run of a scenario in the history (drills
+// refused by preflight never ran and are skipped), e.g.
 // "PASS · 2026-10-08 02:31 UTC". The time is when that run finished: a static
 // badge cannot say "6 h ago", and the date tells a reader the same.
 func NewBadge(entries []HistoryEntry, scenario, label string) Badge {
 	b := Badge{SchemaVersion: 1, Label: label, Message: "no run yet", Color: "lightgrey"}
 	var last *HistoryEntry
 	for i := range entries {
-		if e := &entries[i]; e.Scenario == scenario && (last == nil || e.StartedAt.After(last.StartedAt)) {
+		if e := &entries[i]; e.Scenario == scenario && !e.Refused && (last == nil || e.StartedAt.After(last.StartedAt)) {
 			last = e
 		}
 	}

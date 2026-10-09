@@ -20,6 +20,7 @@ type HistoryEntry struct {
 	Scenario        string        `json:"scenario"`
 	Tier            string        `json:"tier,omitempty"`
 	Result          Result        `json:"result"`
+	Refused         bool          `json:"refused,omitempty"` // see Report.Refused
 	StartedAt       time.Time     `json:"started_at"`
 	DurationSeconds float64       `json:"duration_seconds"`
 	Measurements    []Measurement `json:"measurements,omitempty"`
@@ -28,7 +29,7 @@ type HistoryEntry struct {
 // HistoryEntry summarises the report for the history file.
 func (r *Report) HistoryEntry() HistoryEntry {
 	return HistoryEntry{
-		RunID: r.RunID, Scenario: r.Scenario, Tier: r.Tier, Result: r.Result,
+		RunID: r.RunID, Scenario: r.Scenario, Tier: r.Tier, Result: r.Result, Refused: r.Refused,
 		StartedAt: r.StartedAt, DurationSeconds: r.Duration().Seconds(), Measurements: r.Measurements,
 	}
 }
@@ -90,10 +91,14 @@ type TrendRow struct {
 	Runs, Passed   int
 	Last           Result
 	LastAt         time.Time
+	LastRefused    bool // the newest attempt was refused by its preflight
 	Measures       []MeasureStats
 }
 
-// Trend groups history by scenario and tier.
+// Trend groups history by scenario and tier. A refused drill is no run: it
+// only becomes the last result when nothing ran after it, so a drill that
+// never got past preflight stays visible while the retries of a drill
+// programme do not.
 func Trend(entries []HistoryEntry) []TrendRow {
 	type key struct{ scenario, tier string }
 	rows := map[key]*TrendRow{}
@@ -105,12 +110,15 @@ func Trend(entries []HistoryEntry) []TrendRow {
 			row = &TrendRow{Scenario: e.Scenario, Tier: e.Tier}
 			rows[k], values[k] = row, map[string][]Measurement{}
 		}
+		if !e.StartedAt.Before(row.LastAt) {
+			row.Last, row.LastAt, row.LastRefused = e.Result, e.StartedAt, e.Refused
+		}
+		if e.Refused {
+			continue
+		}
 		row.Runs++
 		if e.Result == Pass {
 			row.Passed++
-		}
-		if !e.StartedAt.Before(row.LastAt) {
-			row.Last, row.LastAt = e.Result, e.StartedAt
 		}
 		for _, m := range e.Measurements {
 			values[k][m.Name] = append(values[k][m.Name], m)
@@ -159,7 +167,11 @@ func RenderTrend(rows []TrendRow) string {
 		if tier == "" {
 			tier = "—"
 		}
-		fmt.Fprintf(&b, "| %s | %s | %d | %d | %s | %s | %s |\n", r.Scenario, tier, r.Runs, r.Passed, r.Last,
+		last := string(r.Last)
+		if r.LastRefused {
+			last += " (refused)"
+		}
+		fmt.Fprintf(&b, "| %s | %s | %d | %d | %s | %s | %s |\n", r.Scenario, tier, r.Runs, r.Passed, last,
 			r.LastAt.UTC().Format("2006-01-02 15:04"), strings.Join(ms, "<br>"))
 	}
 	return b.String()

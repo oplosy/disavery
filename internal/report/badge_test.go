@@ -11,6 +11,8 @@ func TestNewBadge(t *testing.T) {
 		{Scenario: "s6-restore-test", Result: report.Pass, StartedAt: at(0), DurationSeconds: 60},
 		{Scenario: "s6-restore-test", Result: report.Failed, StartedAt: at(3600), DurationSeconds: 90},
 		{Scenario: "s1-site-loss", Result: report.Pass, StartedAt: at(7200), DurationSeconds: 60},
+		// Refused by preflight: nothing ran, so it does not replace the last run.
+		{Scenario: "s6-restore-test", Result: report.Error, Refused: true, StartedAt: at(9000), DurationSeconds: 1},
 	}
 	got := report.NewBadge(h, "s6-restore-test", "last restore drill")
 	want := report.Badge{SchemaVersion: 1, Label: "last restore drill", Message: "FAILED · 2026-10-07 13:01 UTC", Color: "red"}

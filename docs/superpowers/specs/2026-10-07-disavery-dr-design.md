@@ -311,7 +311,8 @@ Grafana dashboards: backup health, replication, drill history.
 
 - Cloud profile (`envs/cloud`, Hetzner or AWS) reusing Ansible roles.
 - Fencing / split-brain prevention and DNS TTL experiments in depth.
-- RTO vs. data size study (1 / 10 / 50 GB).
+- RTO vs. data size study: done for 1 / 5 / 10 GB ([docs/scaling.md](../../scaling.md)); 50 GB needs
+  more disk than the local lab has.
 - Logical backups for cross-version and partial restores.
 - MinIO, `docsvc` and node metrics in Prometheus (v1 scrapes what its alerts
   and dashboards read).

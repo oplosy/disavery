@@ -35,3 +35,8 @@ RUN python3 -m venv /opt/ansible \
  && mkdir -p /root/.terraform.d/plugin-cache
 
 ENV PATH=/opt/ansible/bin:$PATH
+
+# The checkout is bind-mounted at /work and owned by the host user (uid 1001
+# on CI runners); without this, git refuses it and `go build` cannot stamp
+# the binaries with their commit.
+RUN git config --system --add safe.directory /work

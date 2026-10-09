@@ -2200,7 +2200,7 @@ In `docs/superpowers/specs/2026-10-07-disavery-dr-design.md`:
 - [ ] **Step 4: README**
 
 `README.md`, whole:
-markdown
+````markdown
 # disavery
 
 [![last restore drill](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/oplosy/disavery/drill-history/badge.json)](https://github.com/oplosy/disavery/tree/drill-history)
@@ -2333,7 +2333,7 @@ make test         # unit + integration tests (needs Docker)
 make test-alerts  # Prometheus alert rules (promtool)
 make lint
 ```
-
+````
 
 - [ ] **Step 5: CLAUDE.md**
 
@@ -2417,3 +2417,10 @@ docker compose exec -T toolbox bash -c 'terraform fmt -check -recursive infra/te
 git push -u origin feat/m5-monitoring-ci-drills
 ```
 Expected: all green. Open a PR to `main`; CI must be green before merging. After the merge, trigger `drills` once by hand (programme `nightly`) so the badge exists before the first night.
+
+## Amendments
+
+Found while implementing (2026-10-09):
+
+1. **The README block of Task 6 lost its outer fence.** The script that assembled this plan wrote the four-backtick fence through a double-quoted `printf`, where backticks are command substitution, so only `markdown` and an empty line were left. Fixed in place: the README is the block between the four-backtick fences.
+2. **`make test-alerts` from Git Bash on Windows** fails with "the working directory 'M:/' is invalid": MSYS rewrites `-w /m` into a Windows path. Run it as `MSYS_NO_PATHCONV=1 make test-alerts` there; CI and PowerShell are unaffected.

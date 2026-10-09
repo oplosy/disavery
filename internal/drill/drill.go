@@ -25,6 +25,11 @@ import (
 	"github.com/oplosy/disavery/internal/verify"
 )
 
+// retryDelay spaces out the attempts of a step with retries: S7's fencing
+// steps retry until the restarted site-a nodes accept SSH, which takes a few
+// seconds on a CI runner.
+const retryDelay = 3 * time.Second
+
 // RunContext is what per-run checks need to know about the run.
 type RunContext struct {
 	Targets bia.Targets
@@ -143,6 +148,8 @@ func Run(ctx context.Context, o Options, l Lab) (*report.Report, string, error) 
 	if len(failedPreflight) > 0 {
 		r.Result = report.Error
 		r.Notes = []string{"preflight failed (" + strings.Join(failedPreflight, ", ") + "); nothing was changed"}
+		// scripts/drill-programme.sh retries on this line.
+		fmt.Fprintf(o.Out, "\n%s\n", r.Notes[0])
 		return finish()
 	}
 
@@ -155,10 +162,11 @@ func Run(ctx context.Context, o Options, l Lab) (*report.Report, string, error) 
 	defer cancel()
 	fmt.Fprintf(o.Out, "\nsteps\n")
 	res := executor.Execute(runCtx, rb, executor.Options{
-		Data:    data,
-		Runners: runners,
-		Logs:    logs,
-		Now:     o.Now,
+		Data:       data,
+		Runners:    runners,
+		Logs:       logs,
+		Now:        o.Now,
+		RetryDelay: retryDelay,
 		Progress: func(s executor.StepRecord) {
 			line := fmt.Sprintf("  %-8s %-24s %-7s %s", s.Phase, s.ID, s.Status, report.FormatDuration(s.End.Sub(s.Start)))
 			if s.Check != nil {

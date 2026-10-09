@@ -24,7 +24,8 @@ func TestWaitAlert(t *testing.T) {
 			_, _ = w.Write([]byte(`[{"labels":{"alertname":"ReplicationLagHigh"}}]`))
 			return
 		}
-		_, _ = w.Write([]byte(`[{"labels":{"alertname":"ReplicationLagHigh"}},{"labels":{"alertname":"PostgresPrimaryDown"}}]`))
+		_, _ = w.Write([]byte(`[{"labels":{"alertname":"ReplicationLagHigh"}},{"labels":{"alertname":"PostgresPrimaryDown"}},` +
+			`{"labels":{"alertname":"RestoreTestStale","blocks_drills":"false"}}]`))
 	}))
 	defer srv.Close()
 
@@ -41,8 +42,13 @@ func TestWaitAlert(t *testing.T) {
 		t.Fatalf("want timeout error, got %v", err)
 	}
 
-	names, err := activeAlerts(context.Background(), srv.Client(), srv.URL)
-	if err != nil || strings.Join(names, ",") != "PostgresPrimaryDown,ReplicationLagHigh" {
+	names, err := activeAlerts(context.Background(), srv.Client(), srv.URL, nil)
+	if err != nil || strings.Join(names, ",") != "PostgresPrimaryDown,ReplicationLagHigh,RestoreTestStale" {
 		t.Fatalf("names %v %v", names, err)
+	}
+	// Preflight ignores alerts about the drill programme itself.
+	names, err = activeAlerts(context.Background(), srv.Client(), srv.URL, blocksDrills)
+	if err != nil || strings.Join(names, ",") != "PostgresPrimaryDown,ReplicationLagHigh" {
+		t.Fatalf("blocking names %v %v", names, err)
 	}
 }

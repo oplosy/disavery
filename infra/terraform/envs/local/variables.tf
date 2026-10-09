@@ -60,6 +60,12 @@ variable "standby_site" {
   }
 }
 
+variable "grafana_host_port" {
+  description = "Host port published for Grafana (anonymous, read-only)."
+  type        = number
+  default     = 3000
+}
+
 variable "prometheus_host_port" {
   description = "Host port published for the Prometheus UI."
   type        = number

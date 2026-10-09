@@ -24,6 +24,8 @@ locals {
       restore      = cidrhost(var.wan_subnet, 50)
       prometheus   = cidrhost(var.wan_subnet, 13)
       alertmanager = cidrhost(var.wan_subnet, 14)
+      pushgateway  = cidrhost(var.wan_subnet, 15)
+      grafana      = cidrhost(var.wan_subnet, 16)
     },
     {
       for pair in setproduct(keys(local.site_cfg), keys(local.site_roles)) :

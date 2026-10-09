@@ -74,6 +74,10 @@ canary: build ## Start the canary writer (restarted so it runs the current binar
 	docker compose up -d canary
 	docker compose restart canary
 
+.PHONY: test-alerts
+test-alerts: ## Unit-test the Prometheus alert rules
+	docker run --rm -v "$(CURDIR)/infra/terraform/envs/local/monitoring:/m" -w /m --entrypoint promtool prom/prometheus:v3.15.0 test rules alerts_test.yml
+
 .PHONY: drill
 drill: ## Run a drill: make drill SCENARIO=s6-restore-test [TIER=warm-standby] [ARGS=--yes]
 	$(TB) build/disavery drill run $(SCENARIO) $(if $(TIER),--tier $(TIER)) $(ARGS)

@@ -45,12 +45,14 @@
     - postgres
     - pgbackrest
     - postgres_exporter
+    - pgbackrest_exporter
 
 - name: Standby database
   hosts: "db:&standby"
   roles:
     - replica
     - postgres_exporter
+    - pgbackrest_exporter
 
 - name: Payment provider mock
   hosts: webhooks

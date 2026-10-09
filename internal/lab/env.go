@@ -24,6 +24,7 @@ type Env struct {
 	TopologyPath  string // Terraform variables written by `disavery env set`
 	InventoryPath string
 	Alertmanager  string // base URL of the Alertmanager API
+	Pushgateway   string // base URL of the Pushgateway that keeps drill results
 	SSH           SSH
 	Now           func() time.Time
 
@@ -48,6 +49,7 @@ func Default(root string) *Env {
 		TopologyPath:  filepath.Join(root, "infra", "terraform", "envs", "local", "topology.auto.tfvars"),
 		InventoryPath: filepath.Join(root, "infra", "ansible", "inventory", "hosts.yml"),
 		Alertmanager:  "http://alertmanager:9093",
+		Pushgateway:   "http://pushgateway:9091",
 		SSH:           SSH{KeyFile: "/secrets/ssh/id_ed25519", User: "root"},
 		Now:           time.Now,
 	}

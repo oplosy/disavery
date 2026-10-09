@@ -35,6 +35,10 @@ jobs:
       - run: terraform fmt -check -recursive infra/terraform
       - run: terraform -chdir=infra/terraform/envs/local init -backend=false -input=false
       - run: terraform -chdir=infra/terraform/envs/local validate
+      - name: Alert rules
+        run: docker run --rm -v "$PWD/infra/terraform/envs/local/monitoring:/m" -w /m --entrypoint promtool prom/prometheus:v3.15.0 test rules alerts_test.yml
+      - name: Drill scripts
+        run: shellcheck scripts/*.sh
       - name: ansible-lint
         working-directory: infra/ansible
         env:

@@ -127,6 +127,38 @@ func TestRetries(t *testing.T) {
 	}
 }
 
+// TestRetryDelay: attempts are spaced out, so a retry can outlast a node that
+// is still booting (S7 fences site a right after starting it); cancelling the
+// drill ends the wait at once.
+func TestRetryDelay(t *testing.T) {
+	rb := &runbook.Runbook{Phases: []runbook.Phase{{Name: "recover", Steps: []runbook.Step{
+		{ID: "a", Run: "flaky:3", Retries: 2},
+	}}}}
+	start := time.Now()
+	res := executor.Execute(context.Background(), rb, executor.Options{
+		Runners:    map[string]executor.Runner{runbook.KindRun: &fakeRunner{}},
+		RetryDelay: 50 * time.Millisecond,
+	})
+	if res.Outcome != executor.Completed || res.Steps[0].Attempts != 3 {
+		t.Fatalf("result %+v", res)
+	}
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Fatalf("three attempts took %s, want two pauses of 50ms", elapsed)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(50*time.Millisecond, cancel)
+	start = time.Now()
+	rb.Phases[0].Steps[0] = runbook.Step{ID: "b", Run: "fail", Retries: 3}
+	res = executor.Execute(ctx, rb, executor.Options{
+		Runners:    map[string]executor.Runner{runbook.KindRun: &fakeRunner{}},
+		RetryDelay: time.Hour,
+	})
+	if res.Outcome != executor.Cancelled || res.Steps[0].Attempts != 1 || time.Since(start) > 5*time.Second {
+		t.Fatalf("cancelled wait: %+v after %s", res, time.Since(start))
+	}
+}
+
 func TestTimeoutAbortAndCleanup(t *testing.T) {
 	rb := &runbook.Runbook{
 		Phases: []runbook.Phase{

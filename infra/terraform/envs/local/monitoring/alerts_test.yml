@@ -1,0 +1,69 @@
+# Unit tests for alerts.yml: `promtool test rules alerts_test.yml` (CI runs it).
+rule_files: [alerts.yml]
+evaluation_interval: 15s
+
+tests:
+  # WAL archiving: 45 s is a warning, 50 s risks the pilot-light RPO target.
+  - interval: 15s
+    input_series:
+      - series: 'pg_stat_archiver_last_archive_age{job="postgres", role="primary", instance="db-a"}'
+        values: '20 30 46 46 46 55'
+      - series: 'pg_stat_archiver_last_archive_age{job="postgres", role="standby", instance="db-b"}'
+        values: '300x5'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: WalArchiveLagHigh
+        exp_alerts: []
+      - eval_time: 60s
+        alertname: WalArchiveLagHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, job: postgres, role: primary, instance: db-a}
+            exp_annotations: {summary: "db-a last archived WAL 46s ago (archive_timeout is 30 s)"}
+      - eval_time: 60s
+        alertname: RpoBreachRisk
+        exp_alerts: []
+      - eval_time: 75s
+        alertname: RpoBreachRisk
+        exp_alerts:
+          - exp_labels: {severity: critical, job: postgres, role: primary, instance: db-a}
+            exp_annotations: {summary: "db-a has unarchived WAL 55s old; the pilot-light RPO target is 60 s"}
+
+  # Backups: older than 2 h for 5 minutes; a standby's empty repo1 is ignored.
+  - interval: 1m
+    input_series:
+      - series: 'pgbackrest_backup_repo_since_last_completion_seconds{job="pgbackrest", role="primary", backup_type="incr", repo_key="2", instance="db-a"}'
+        values: '7000+60x10'
+      - series: 'pgbackrest_backup_repo_since_last_completion_seconds{job="pgbackrest", role="standby", backup_type="incr", repo_key="1", instance="db-b"}'
+        values: '99999x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: BackupTooOld
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: BackupTooOld
+        exp_alerts:
+          - exp_labels: {severity: warning, job: pgbackrest, role: primary, backup_type: incr, repo_key: "2", instance: db-a}
+            exp_annotations: {summary: "repo2 has no new backup for 2h 5m 40s (policy: hourly)"}
+
+  # Restore tests: stale after 48 h, and a lab that never ran one; neither blocks drills.
+  - interval: 1m
+    input_series:
+      - series: 'disavery_drill_last_success_timestamp_seconds{job="disavery_drill_success", scenario="s6-restore-test", tier="none"}'
+        values: '0x3000'
+    alert_rule_test:
+      - eval_time: 47h
+        alertname: RestoreTestStale
+        exp_alerts: []
+      - eval_time: 50h
+        alertname: RestoreTestStale
+        exp_alerts:
+          - exp_labels: {severity: warning, blocks_drills: "false", scenario: s6-restore-test}
+            exp_annotations: {summary: "No random restore test (S6) has passed in the last 48 hours"}
+  - interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RestoreTestStale
+        exp_alerts:
+          - exp_labels: {severity: warning, blocks_drills: "false", scenario: s6-restore-test}
+            exp_annotations: {summary: "No random restore test (S6) has passed in the last 48 hours"}

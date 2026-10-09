@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -34,6 +36,7 @@ commands:
   report <dir>                             re-render report.md from report.json
   report trend                             summarise reports/history.jsonl
   report tiers                             compare DR tiers (site loss, S1): measured vs. target, cost
+  report badge [--scenario S]              shields.io endpoint JSON for the newest run (README badge)
   verify                                   verify production now
   env reset [--tier T]                     return the lab to a tier's baseline topology
   env set key=value...                     change the topology (active_site, standby_site, site_b_enabled, ...)
@@ -41,6 +44,7 @@ commands:
   attachments rewind --store S --to T      make a site store's attachments current as of time T
   vault attack                             attack the vault with the production writer's key (S4); JSON evidence
   vault undelete --since T                 remove delete markers placed since T, as the vault administrator
+  seed [--size 500MB]                      grow the production database with ballast, then back it up (CI drills)
   canary run                               write canary records (long-running service)
   restore-point [--repo 2] [--seed N]      choose a random backup set and PITR target (JSON)
 
@@ -100,7 +104,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return exitError
 	}
 	cmd := args[0]
-	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || cmd == "attachments" || cmd == "vault" || (cmd == "report" && (args[1] == "trend" || args[1] == "tiers"))) {
+	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || cmd == "attachments" || cmd == "vault" || (cmd == "report" && (args[1] == "trend" || args[1] == "tiers" || args[1] == "badge"))) {
 		cmd += " " + args[1]
 		args = args[1:]
 	}
@@ -124,6 +128,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		yes := fs.Bool("yes", false, "confirm a runbook that injects a failure")
 		timeout := fs.Duration("timeout", time.Hour, "global timeout; cleanup still runs")
 		seed := fs.Int64("seed", 0, "random seed (default: time-based)")
+		push := fs.String("pushgateway", lab.Default(".").Pushgateway, "Pushgateway for the result (empty: do not push)")
 		id, err := parseWithArg(fs, args[1:], "runbook id")
 		if err != nil {
 			return fail(err)
@@ -147,6 +152,15 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 			}
 		}
 		fmt.Fprintf(stdout, "\nreport %s\n", filepath.Join(dir, "report.md"))
+		// Dashboards and alert RestoreTestStale read the result; failing to
+		// push it does not change the drill's verdict.
+		if *push != "" {
+			pctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			if err := report.Push(pctx, &http.Client{}, *push, r); err != nil {
+				fmt.Fprintf(stderr, "warning: result not pushed to %s: %v\n", *push, err)
+			}
+			cancel()
+		}
 		return r.Result.ExitCode()
 
 	case "drill list":
@@ -296,6 +310,26 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 			top.ActiveSite, top.StandbySite, top.SiteAEnabled, top.SiteBEnabled)
 		return 0
 
+	case "report badge":
+		history := fs.String("history", "", "history file (default <reports>/history.jsonl)")
+		scenario := fs.String("scenario", "s6-restore-test", "scenario the badge reports")
+		label := fs.String("label", "last restore drill", "badge label")
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		path := *history
+		if path == "" {
+			path = filepath.Join(p.join(p.reports), "history.jsonl")
+		}
+		entries, err := report.ReadHistory(path)
+		if err != nil {
+			return fail(err)
+		}
+		if err := json.NewEncoder(stdout).Encode(report.NewBadge(entries, *scenario, *label)); err != nil {
+			return fail(err)
+		}
+		return 0
+
 	case "report tiers":
 		history := fs.String("history", "", "history file (default <reports>/history.jsonl)")
 		scenario := fs.String("scenario", "s1-site-loss", "scenario whose runs are compared")
@@ -406,6 +440,24 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		}
 		return 0
 
+	case "seed":
+		size := fs.String("size", "500MB", "ballast to reach in the production database (e.g. 500MB, 1GB)")
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		n, err := parseSize(*size)
+		if err != nil {
+			return fail(err)
+		}
+		b, err := bia.Load(p.join(p.bia))
+		if err != nil {
+			return fail(err)
+		}
+		if _, err := p.lab(b, "drill", nil, stdout).Seed(ctx, n, stdout); err != nil {
+			return fail(err)
+		}
+		return 0
+
 	case "canary run":
 		interval := fs.Duration("interval", time.Second, "time between writes")
 		if err := fs.Parse(args[1:]); err != nil {
@@ -446,6 +498,24 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
 	fmt.Fprintf(stderr, "unknown command %q\n\n%s", cmd, usage)
 	return exitError
+}
+
+// parseSize parses a size such as 500MB or 1GB (binary units: 1 MB = 2^20 bytes).
+func parseSize(s string) (int64, error) {
+	units := []struct {
+		suffix string
+		shift  uint
+	}{{"GB", 30}, {"MB", 20}, {"KB", 10}, {"B", 0}}
+	for _, u := range units {
+		if num, ok := strings.CutSuffix(strings.ToUpper(strings.TrimSpace(s)), u.suffix); ok {
+			n, err := strconv.ParseInt(strings.TrimSpace(num), 10, 64)
+			if err != nil || n <= 0 {
+				return 0, fmt.Errorf("invalid size %q", s)
+			}
+			return n << u.shift, nil
+		}
+	}
+	return 0, fmt.Errorf("invalid size %q (use B, KB, MB or GB)", s)
 }
 
 // parseWithArg parses flags that may come before or after one positional argument.

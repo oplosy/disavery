@@ -16,3 +16,15 @@ scrape_configs:
   - job_name: postgres
     file_sd_configs:
       - files: ["/etc/prometheus/targets/postgres.json"]
+
+  # pgbackrest_exporter on the same nodes; the role label comes from the topology too.
+  - job_name: pgbackrest
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/pgbackrest.json"]
+
+  # Drill results pushed by `disavery drill run`. honor_labels keeps each push
+  # group's job, scenario and tier labels.
+  - job_name: pushgateway
+    honor_labels: true
+    static_configs:
+      - targets: ["pushgateway:9091"]

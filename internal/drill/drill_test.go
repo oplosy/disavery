@@ -204,6 +204,8 @@ func TestOutcomes(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			o, _ := setup(t, tc.max)
+			var out strings.Builder
+			o.Out = &out
 			l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}}
 			if tc.mutate != nil {
 				tc.mutate(&o, l)
@@ -214,6 +216,11 @@ func TestOutcomes(t *testing.T) {
 			}
 			if r.Result != tc.result || len(r.Notes) == 0 || !strings.Contains(r.Notes[0], tc.note) || (len(l.ran) > 0) != tc.executed {
 				t.Fatalf("result %s notes %v ran %v", r.Result, r.Notes, l.ran)
+			}
+			// The note is printed too: scripts/drill-programme.sh retries a
+			// drill whose output says its preflight failed.
+			if !strings.Contains(out.String(), tc.note) {
+				t.Fatalf("note %q not in the output:\n%s", tc.note, out.String())
 			}
 		})
 	}

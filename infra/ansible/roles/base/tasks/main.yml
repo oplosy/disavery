@@ -1,8 +1,17 @@
+# The node image ships without package lists, but Ansible judges the cache's
+# age by the lists directory's mtime: on a node image built minutes ago (CI)
+# the empty cache looks fresh and is never updated.
+- name: Find the package lists
+  ansible.builtin.find:
+    paths: /var/lib/apt/lists
+    patterns: "*_Packages*"
+  register: base_apt_lists
+
 - name: Install base packages
   ansible.builtin.apt:
     name: [ca-certificates, curl, gnupg, jq]
     update_cache: true
-    cache_valid_time: 3600
+    cache_valid_time: "{{ 3600 if base_apt_lists.matched > 0 else 0 }}"
 
 - name: Trust the disavery CA
   ansible.builtin.copy:

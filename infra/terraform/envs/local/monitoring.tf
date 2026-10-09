@@ -83,3 +83,102 @@ resource "docker_container" "alertmanager" {
     value = "drill"
   }
 }
+
+# Drill results (spec §8): `disavery drill run` pushes each result here, and
+# Prometheus scrapes it. Persisted, so a restart keeps when the restore test
+# last passed (alert RestoreTestStale).
+resource "docker_image" "pushgateway" {
+  name         = "prom/pushgateway:v1.11.3"
+  keep_locally = true
+}
+
+resource "docker_volume" "pushgateway" {
+  name = "disavery-pushgateway"
+
+  labels {
+    label = "disavery.env"
+    value = "drill"
+  }
+}
+
+resource "docker_container" "pushgateway" {
+  name    = "pushgateway"
+  image   = docker_image.pushgateway.image_id
+  restart = "unless-stopped"
+  # See modules/node: Docker reports "bridge" for networks_advanced-only containers.
+  network_mode = "bridge"
+  command = [
+    "--persistence.file=/data/metrics",
+    "--persistence.interval=30s",
+  ]
+
+  networks_advanced {
+    name         = data.docker_network.wan.name
+    ipv4_address = local.ip.pushgateway
+  }
+
+  volumes {
+    volume_name    = docker_volume.pushgateway.name
+    container_path = "/data"
+  }
+
+  labels {
+    label = "disavery.env"
+    value = "drill"
+  }
+}
+
+# Dashboards for backup health, replication and drill history (spec §10),
+# provisioned from files; anonymous users can view, nobody can edit.
+resource "docker_image" "grafana" {
+  name         = "grafana/grafana:13.2.2"
+  keep_locally = true
+}
+
+resource "docker_container" "grafana" {
+  name    = "grafana"
+  image   = docker_image.grafana.image_id
+  restart = "unless-stopped"
+  # See modules/node: Docker reports "bridge" for networks_advanced-only containers.
+  network_mode = "bridge"
+  env = [
+    "GF_AUTH_ANONYMOUS_ENABLED=true",
+    "GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer",
+    "GF_AUTH_DISABLE_LOGIN_FORM=true",
+    "GF_USERS_ALLOW_SIGN_UP=false",
+    "GF_ANALYTICS_REPORTING_ENABLED=false",
+    "GF_ANALYTICS_CHECK_FOR_UPDATES=false",
+    "GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/drills.json",
+  ]
+
+  ports {
+    internal = 3000
+    external = var.grafana_host_port
+  }
+
+  networks_advanced {
+    name         = data.docker_network.wan.name
+    ipv4_address = local.ip.grafana
+  }
+
+  upload {
+    file    = "/etc/grafana/provisioning/datasources/prometheus.yml"
+    content = file("${path.module}/monitoring/grafana/datasource.yml")
+  }
+  upload {
+    file    = "/etc/grafana/provisioning/dashboards/disavery.yml"
+    content = file("${path.module}/monitoring/grafana/dashboards.yml")
+  }
+  dynamic "upload" {
+    for_each = fileset("${path.module}/monitoring/grafana/dashboards", "*.json")
+    content {
+      file    = "/etc/grafana/dashboards/${upload.value}"
+      content = file("${path.module}/monitoring/grafana/dashboards/${upload.value}")
+    }
+  }
+
+  labels {
+    label = "disavery.env"
+    value = "drill"
+  }
+}

@@ -198,7 +198,7 @@ type waitAlertRunner struct {
 
 func (r waitAlertRunner) Run(ctx context.Context, s executor.Step, log io.Writer) (executor.Output, error) {
 	for {
-		active, err := activeAlerts(ctx, r.Client, r.URL)
+		active, err := activeAlerts(ctx, r.Client, r.URL, nil)
 		switch {
 		case err != nil:
 			fmt.Fprintf(log, "alertmanager: %v\n", err)
@@ -214,8 +214,15 @@ func (r waitAlertRunner) Run(ctx context.Context, s executor.Step, log io.Writer
 	}
 }
 
-// activeAlerts returns the names of active (not silenced or inhibited) alerts.
-func activeAlerts(ctx context.Context, c *http.Client, base string) ([]string, error) {
+// blocksDrills reports whether an active alert means the lab is unfit for a
+// drill. Alerts about the drill programme itself carry blocks_drills="false":
+// RestoreTestStale fires in a lab that has never run a restore test, and it
+// must not stop that restore test from starting.
+func blocksDrills(labels map[string]string) bool { return labels["blocks_drills"] != "false" }
+
+// activeAlerts returns the names of active (not silenced or inhibited) alerts
+// whose labels keep accepts; a nil keep accepts all.
+func activeAlerts(ctx context.Context, c *http.Client, base string, keep func(map[string]string) bool) ([]string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
 		base+"/api/v2/alerts?active=true&silenced=false&inhibited=false", nil)
 	if err != nil {
@@ -237,7 +244,9 @@ func activeAlerts(ctx context.Context, c *http.Client, base string) ([]string, e
 	}
 	names := make([]string, 0, len(alerts))
 	for _, a := range alerts {
-		names = append(names, a.Labels["alertname"])
+		if keep == nil || keep(a.Labels) {
+			names = append(names, a.Labels["alertname"])
+		}
 	}
 	slices.Sort(names)
 	return slices.Compact(names), nil

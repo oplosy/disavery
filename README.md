@@ -44,30 +44,29 @@ Sample reports: [restore test](reports/samples/s6-restore-test/report.md) ·
 ## Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
   users((Users)) --> edge
-  subgraph global["global zone (survives site loss)"]
-    dns[CoreDNS] ~~~ edge[Caddy edge]
-    mon[Prometheus · Alertmanager<br/>Pushgateway · Grafana]
-    webhook[payment provider mock]
+  subgraph global["global zone: survives a site loss"]
+    edge[Caddy edge + CoreDNS]
+    mon[Prometheus, Alertmanager,<br/>Pushgateway, Grafana]
   end
-  subgraph a["site a (production)"]
-    appa[docsvc] --> dba[(PostgreSQL 16<br/>+ pgBackRest repo1)]
-    appa --> obja[(MinIO attachments)]
+  subgraph a["site a: production"]
+    appa[docsvc] --> dba[(PostgreSQL 16<br/>pgBackRest repo1)]
+    appa --> obja[(MinIO<br/>attachments)]
   end
-  subgraph b["site b (DR)"]
-    appb[docsvc] --> dbb[(PostgreSQL)]
+  subgraph b["site b: DR"]
+    appb[docsvc] --> dbb[(PostgreSQL 16)]
     appb --> objb[(MinIO)]
   end
-  subgraph v["vault (separate account)"]
+  subgraph v["vault: separate account"]
     vault[(MinIO, Object Lock<br/>pgBackRest repo2 + attachments)]
   end
   edge --> appa
   edge -. after failover .-> appb
   dba -- WAL + backups --> vault
   obja -- replication --> vault
-  dba -- streaming replica<br/>warm standby only --> dbb
-  vault -- rebuild<br/>pilot light only --> dbb
+  dba -. streaming, warm standby .-> dbb
+  vault -. rebuild, pilot light .-> dbb
 ```
 
 Every box is a systemd + SSH Debian container, created by Terraform and

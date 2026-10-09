@@ -156,6 +156,7 @@ func TestDisruptiveWindows(t *testing.T) {
 		{Scenario: "restore", StartedAt: t0, DurationSeconds: 60},                                   // a restore test: normal operation
 		{Scenario: "loss", Tier: "warm-standby", StartedAt: t0.Add(time.Hour), DurationSeconds: 90}, // a site loss
 		{Scenario: "repair", StartedAt: t0.Add(2 * time.Hour), DurationSeconds: 1.5},                // has scenario targets
+		{Scenario: "loss", Tier: "pilot-light", Refused: true, StartedAt: t0.Add(3 * time.Hour)},    // refused: changed nothing
 	}
 	got := drill.DisruptiveWindows(history, o.BIA)
 	want := []restorepoint.Interval{
@@ -291,5 +292,10 @@ func TestRunbookPreflightFailureIsError(t *testing.T) {
 	last := r.Preflight[len(r.Preflight)-1]
 	if r.Result != report.Error || last.Name != "expected-topology" || last.Status != "fail" || len(l.ran) != 0 {
 		t.Fatalf("result %s preflight %+v ran %v", r.Result, r.Preflight, l.ran)
+	}
+	// The history marks it refused, so trends do not count it as a run.
+	h, err := report.ReadHistory(filepath.Join(o.ReportsDir, "history.jsonl"))
+	if err != nil || len(h) != 1 || !r.Refused || !h[0].Refused {
+		t.Fatalf("refused %v history %+v %v", r.Refused, h, err)
 	}
 }

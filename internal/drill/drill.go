@@ -146,7 +146,7 @@ func Run(ctx context.Context, o Options, l Lab) (*report.Report, string, error) 
 		}
 	}
 	if len(failedPreflight) > 0 {
-		r.Result = report.Error
+		r.Result, r.Refused = report.Error, true
 		r.Notes = []string{"preflight failed (" + strings.Join(failedPreflight, ", ") + "); nothing was changed"}
 		// scripts/drill-programme.sh retries on this line.
 		fmt.Fprintf(o.Out, "\n%s\n", r.Notes[0])
@@ -296,6 +296,9 @@ func classify(res executor.Result, ms []verify.Measurement, cause error) (report
 func DisruptiveWindows(history []report.HistoryEntry, b *bia.BIA) []restorepoint.Interval {
 	var out []restorepoint.Interval
 	for _, e := range history {
+		if e.Refused {
+			continue // never started
+		}
 		if _, scenario := b.ScenarioTargets(e.Scenario); e.Tier == "" && !scenario {
 			continue
 		}

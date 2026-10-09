@@ -73,3 +73,22 @@ func TestParseSize(t *testing.T) {
 		}
 	}
 }
+
+// TestReportScalingExcludesRestoreTests: S6 restores a random backup set, not
+// the current database, so by default it has no place in a table by size.
+func TestReportScalingExcludesRestoreTests(t *testing.T) {
+	history := filepath.Join(t.TempDir(), "history.jsonl")
+	lines := `{"scenario":"s6-restore-test","result":"PASS","data_bytes":1073741824,"started_at":"2026-10-09T12:00:00Z","duration_seconds":60}
+{"scenario":"s1-site-loss","tier":"pilot-light","result":"PASS","data_bytes":1073741824,"started_at":"2026-10-09T12:00:00Z","duration_seconds":200}
+`
+	if err := os.WriteFile(history, []byte(lines), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errOut := runCLI("report", "scaling", "--history", history)
+	if code != 0 || strings.Contains(out, "s6-restore-test") || !strings.Contains(out, "| s1-site-loss | pilot-light | drill duration | 3m20s (1) |") {
+		t.Fatalf("exit %d\n%s%s", code, out, errOut)
+	}
+	if code, out, _ := runCLI("report", "scaling", "--history", history, "--exclude", ""); code != 0 || !strings.Contains(out, "s6-restore-test") {
+		t.Fatalf("--exclude '': exit %d\n%s", code, out)
+	}
+}

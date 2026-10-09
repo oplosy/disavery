@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -37,6 +38,7 @@ commands:
   report trend                             summarise reports/history.jsonl
   report tiers                             compare DR tiers (site loss, S1): measured vs. target, cost
   report badge [--scenario S]              shields.io endpoint JSON for the newest run (README badge)
+  report scaling [--exclude S,...]         recovery times by data size (spec §14), without S6 by default
   verify                                   verify production now
   env reset [--tier T]                     return the lab to a tier's baseline topology
   env set key=value...                     change the topology (active_site, standby_site, site_b_enabled, ...)
@@ -104,7 +106,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		return exitError
 	}
 	cmd := args[0]
-	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || cmd == "attachments" || cmd == "vault" || (cmd == "report" && (args[1] == "trend" || args[1] == "tiers" || args[1] == "badge"))) {
+	if len(args) > 1 && !strings.HasPrefix(args[1], "-") && (cmd == "drill" || cmd == "runbook" || cmd == "env" || cmd == "canary" || cmd == "attachments" || cmd == "vault" || (cmd == "report" && (args[1] == "trend" || args[1] == "tiers" || args[1] == "badge" || args[1] == "scaling"))) {
 		cmd += " " + args[1]
 		args = args[1:]
 	}
@@ -328,6 +330,27 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		if err := json.NewEncoder(stdout).Encode(report.NewBadge(entries, *scenario, *label)); err != nil {
 			return fail(err)
 		}
+		return 0
+
+	case "report scaling":
+		history := fs.String("history", "", "history file (default <reports>/history.jsonl)")
+		// S6 restores a random backup set to a random point: what it restores
+		// is not the database size recorded with the run.
+		exclude := fs.String("exclude", "s6-restore-test", "comma-separated scenarios to leave out")
+		if err := fs.Parse(args[1:]); err != nil {
+			return exitError
+		}
+		path := *history
+		if path == "" {
+			path = filepath.Join(p.join(p.reports), "history.jsonl")
+		}
+		entries, err := report.ReadHistory(path)
+		if err != nil {
+			return fail(err)
+		}
+		skip := strings.Split(*exclude, ",")
+		entries = slices.DeleteFunc(entries, func(e report.HistoryEntry) bool { return slices.Contains(skip, e.Scenario) })
+		fmt.Fprint(stdout, report.RenderScaling(report.Scaling(entries)))
 		return 0
 
 	case "report tiers":

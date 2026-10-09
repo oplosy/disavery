@@ -110,6 +110,19 @@ are kept as run artifacts; the history, the badge above and trend tables go to
 the [`drill-history`](https://github.com/oplosy/disavery/tree/drill-history)
 branch, so `main` stays free of bot commits.
 
+## Recovery time by data size
+
+Measured at 1, 5 and 10 GB, three runs each ([details](docs/scaling.md)):
+pilot light's RTO grows from 3 m 0 s to 4 m 15 s, about 6–10 s per GB on top of
+a fixed 2 m 50 s, because it restores the data at recovery time; warm standby
+stays at 1 minute at every size. Data loss and the users' outage during
+failback do not change with size.
+
+```bash
+scripts/drill-programme.sh scaling                       # about four hours, on a fresh lab with ~60 GB free
+docker compose exec toolbox build/disavery report scaling
+```
+
 ## What the drills found
 
 Each of these was found by a drill failing, and fixed:
@@ -118,7 +131,8 @@ Each of these was found by a drill failing, and fixed:
 - backups an attacker can hide with the production key, although not delete ([ADR 0006](docs/adr/0006-vault-identities-and-delete-markers.md));
 - a wiped object store that claimed to hold every attachment, because MinIO proxies reads to its replication target ([ADR 0007](docs/adr/0007-list-replicated-stores.md));
 - a point-in-time rewind that only worked until the first failover ([ADR 0008](docs/adr/0008-point-in-time-restores-from-the-vault.md));
-- a vault that gained one more version of every attachment each time a site store was refilled from it ([ADR 0010](docs/adr/0010-copy-attachments-back-as-replicas.md)).
+- a vault that gained one more version of every attachment each time a site store was refilled from it ([ADR 0010](docs/adr/0010-copy-attachments-back-as-replicas.md));
+- a warm-standby failback that gave up on a large database while it was still catching up ([ADR 0011](docs/adr/0011-recovery-time-by-data-size.md)).
 
 All decisions: [docs/adr](docs/adr/).
 

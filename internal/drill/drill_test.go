@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,17 +27,24 @@ type fakeLab struct {
 	ran       []string
 	checks    map[string]verify.Status
 	targets   bia.Targets // of the last Checks call
+	dataSize  int64
+	block     bool // restore steps wait for the drill's context to end
 }
 
 func (f *fakeLab) Safety(context.Context, string) error           { return f.safetyErr }
 func (f *fakeLab) Preflight(context.Context) []report.Check       { return f.preflight }
 func (f *fakeLab) DBHost() (string, error)                        { return "db-a", nil }
+func (f *fakeLab) DataSize(context.Context) (int64, error)        { return f.dataSize, nil }
 func (f *fakeLab) Prober(context.Context) (*prober.Prober, error) { return nil, nil }
 func (f *fakeLab) Runners(bool) map[string]executor.Runner {
 	return map[string]executor.Runner{runbook.KindRun: f}
 }
-func (f *fakeLab) Run(_ context.Context, s executor.Step, _ io.Writer) (executor.Output, error) {
+func (f *fakeLab) Run(ctx context.Context, s executor.Step, _ io.Writer) (executor.Output, error) {
 	f.ran = append(f.ran, s.Run)
+	if f.block && strings.HasPrefix(s.Run, "restore") {
+		<-ctx.Done()
+		return executor.Output{}, ctx.Err()
+	}
 	if s.Run == "fail" {
 		return executor.Output{}, errors.New("boom")
 	}
@@ -125,14 +133,27 @@ preflight: {max_backup_age: 2h, max_archive_age: 90s, max_canary_silence: 10s, m
 
 func pass() []report.Check { return []report.Check{{Name: "app-ready", Status: "pass"}} }
 
+// ticking is a clock that advances a second per reading, so a fake step never
+// takes zero time: on Windows the clock is coarser than a fake step.
+func ticking() func() time.Time {
+	var mu sync.Mutex
+	now := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+	return func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		now = now.Add(time.Second)
+		return now
+	}
+}
+
 func TestRestoreTestPasses(t *testing.T) {
 	o, reports := setup(t, "15m")
-	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}}
+	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}, dataSize: 5 << 30}
 	r, dir, err := drill.Run(context.Background(), o, l)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Result != report.Pass || len(r.Measurements) != 1 || r.Measurements[0].Name != "recovery_time" || !r.Measurements[0].Met {
+	if r.Result != report.Pass || r.DataBytes != 5<<30 || len(r.Measurements) != 1 || r.Measurements[0].Name != "recovery_time" || !r.Measurements[0].Met {
 		t.Fatalf("report %+v", r)
 	}
 	if got := strings.Join(l.ran, "|"); got != "pick 7|restore F1 from db-a|tidy" {
@@ -144,7 +165,7 @@ func TestRestoreTestPasses(t *testing.T) {
 		}
 	}
 	h, err := report.ReadHistory(filepath.Join(reports, "history.jsonl"))
-	if err != nil || len(h) != 1 || h[0].Result != report.Pass {
+	if err != nil || len(h) != 1 || h[0].Result != report.Pass || h[0].DataBytes != 5<<30 {
 		t.Fatalf("history %+v %v", h, err)
 	}
 }
@@ -195,7 +216,7 @@ func TestOutcomes(t *testing.T) {
 		note     string
 		executed bool
 	}{
-		{"missed target", nil, "1ns", report.MissedTarget, "recovery_time was", true},
+		{"missed target", func(o *drill.Options, _ *fakeLab) { o.Now = ticking() }, "1ns", report.MissedTarget, "recovery_time was", true},
 		{"failed check", func(_ *drill.Options, l *fakeLab) { l.checks["amcheck"] = verify.Fail }, "15m", report.Failed, "failed steps: integ", true},
 		{"preflight", func(_ *drill.Options, l *fakeLab) {
 			l.preflight = append(l.preflight, report.Check{Name: "backups-fresh", Status: "fail"})
@@ -258,13 +279,14 @@ func TestRefusesToStart(t *testing.T) {
 
 func TestCancelledRunIsError(t *testing.T) {
 	o, _ := setup(t, "15m")
-	o.Timeout = time.Nanosecond
-	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}}
+	// The restore step outlasts the timeout, however coarse the platform's timers.
+	o.Timeout = 50 * time.Millisecond
+	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}, block: true}
 	r, _, err := drill.Run(context.Background(), o, l)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Result != report.Error || !strings.Contains(r.Notes[0], "global timeout of 1ns reached") || l.ran[len(l.ran)-1] != "tidy" {
+	if r.Result != report.Error || !strings.Contains(r.Notes[0], "global timeout of 50ms reached") || l.ran[len(l.ran)-1] != "tidy" {
 		t.Fatalf("result %s notes %v ran %v", r.Result, r.Notes, l.ran)
 	}
 }

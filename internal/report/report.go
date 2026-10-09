@@ -75,7 +75,8 @@ type Report struct {
 	Tier          string                 `json:"tier,omitempty"`
 	Env           string                 `json:"env"`
 	Result        Result                 `json:"result"`
-	Refused       bool                   `json:"refused,omitempty"` // preflight failed: never started, changed nothing
+	Refused       bool                   `json:"refused,omitempty"`    // preflight failed: never started, changed nothing
+	DataBytes     int64                  `json:"data_bytes,omitempty"` // production database size when the drill started
 	Notes         []string               `json:"notes,omitempty"`
 	Seed          int64                  `json:"seed"`
 	StartedAt     time.Time              `json:"started_at"`

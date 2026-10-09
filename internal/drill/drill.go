@@ -45,6 +45,9 @@ type Lab interface {
 	Preflight(ctx context.Context) []report.Check
 	// DBHost is the production database node.
 	DBHost() (string, error)
+	// DataSize is the production database's size in bytes, recorded with the
+	// result so recovery times can be compared across data sizes.
+	DataSize(ctx context.Context) (int64, error)
 	// Prober returns the availability prober, or nil to run without one.
 	Prober(ctx context.Context) (*prober.Prober, error)
 	// Runners returns the step runners except "check".
@@ -151,6 +154,12 @@ func Run(ctx context.Context, o Options, l Lab) (*report.Report, string, error) 
 		// scripts/drill-programme.sh retries on this line.
 		fmt.Fprintf(o.Out, "\n%s\n", r.Notes[0])
 		return finish()
+	}
+	if n, err := l.DataSize(ctx); err != nil {
+		fmt.Fprintf(o.Out, "  data size unknown: %v\n", err)
+	} else {
+		r.DataBytes = n
+		fmt.Fprintf(o.Out, "  data size        %s\n", report.FormatBytes(n))
 	}
 
 	stopProber, err := startProber(ctx, l, filepath.Join(dir, "prober.jsonl"), probes)

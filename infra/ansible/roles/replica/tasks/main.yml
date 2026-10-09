@@ -65,12 +65,29 @@
 - name: Apply PostgreSQL changes now
   ansible.builtin.meta: flush_handlers
 
+# A rejoining standby first replays from the archive everything the primary
+# wrote while it was away (gigabytes after a failback with a large database),
+# then streams. Wait as long as replay advances; give up after 60 s without
+# progress, so a stuck standby still fails.
 - name: Wait until the standby streams from the primary
-  ansible.builtin.command: psql -XAtc "SELECT status FROM pg_stat_wal_receiver"
+  ansible.builtin.shell: |
+    set -eu
+    last=""; idle=0
+    until [ "$(psql -XAtc 'SELECT status FROM pg_stat_wal_receiver')" = streaming ]; do
+      lsn=$(psql -XAtc 'SELECT pg_last_wal_replay_lsn()')
+      if [ "$lsn" = "$last" ]; then
+        idle=$((idle + 1))
+        if [ "$idle" -ge 30 ]; then
+          echo "replay stuck at $lsn for 60 s" >&2
+          exit 1
+        fi
+      else
+        idle=0; last=$lsn
+      fi
+      sleep 2
+    done
+  args:
+    executable: /bin/bash
   become: true
   become_user: postgres
-  register: replica_receiver
-  until: replica_receiver.stdout == "streaming"
-  retries: 30
-  delay: 2
   changed_when: false

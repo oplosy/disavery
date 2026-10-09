@@ -6,7 +6,7 @@
 |---|---|---|---|---|---|
 | **{{.Result}}** | {{dash .Tier}} | {{.Env}} | {{stamp .StartedAt}} | {{dur .Duration}} | {{.Seed}} |
 
-Run `{{.RunID}}`{{with .IncidentAt}} · incident at {{stamp .}} UTC{{end}}
+Run `{{.RunID}}`{{with .IncidentAt}} · incident at {{stamp .}} UTC{{end}}{{with .DataBytes}} · database {{bytes .}}{{end}}
 {{- with .Notes}}
 
 ## Notes

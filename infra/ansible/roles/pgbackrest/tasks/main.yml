@@ -2,10 +2,17 @@
 - name: Install and configure pgBackRest
   ansible.builtin.import_tasks: config.yml
 
+# stanza-create needs the archive lock, which the asynchronous archive-push
+# holds while it ships a WAL backlog (minutes on a promoted standby with a few
+# GB of data). It fails at once with error 50 instead of waiting, so wait here.
 - name: Create the stanza (idempotent)
   ansible.builtin.command: pgbackrest --stanza={{ pgbackrest_stanza }} stanza-create
   become: true
   become_user: postgres
+  register: pgbackrest_stanza_create
+  until: pgbackrest_stanza_create.rc != 50
+  retries: 60
+  delay: 10
   changed_when: false
 
 - name: Check archiving and both repositories

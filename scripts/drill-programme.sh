@@ -6,12 +6,17 @@
 #            day of the year: S1 on pilot light, S1 on warm standby, S2, S3,
 #            S4, S5. Site losses are followed by their failback (S7).
 #   weekly   the whole catalog.
+#   scaling  RTO vs. data size (spec §14), locally: for each size in
+#            SCALING_SIZES (default "1GB 5GB 10GB") seed the database up to it,
+#            then run S1 + S7 on both tiers SCALING_RUNS times (default 3).
+#            Not S6: it restores a random backup set, not the current size.
+#            Summarise with `disavery report scaling`.
 #
 # A drill whose preflight fails changed nothing (ERROR); it is retried for up
 # to five minutes, because the previous drill's recovery may still be settling
 # (a firing PostgresPrimaryDown, a minute of steady canary writes).
 # Exits with the worst result: 0 PASS, 2 MISSED_TARGET, 3 FAILED, 4 ERROR.
-# Usage: scripts/drill-programme.sh nightly|weekly
+# Usage: scripts/drill-programme.sh nightly|weekly|scaling
 set -uo pipefail
 
 worst=0
@@ -69,8 +74,24 @@ case ${1:-} in
       scenario "$s"
     done
     ;;
+  scaling)
+    for size in ${SCALING_SIZES:-1GB 5GB 10GB}; do
+      # Every size starts from the pilot-light baseline; a lab stuck in site b
+      # would seed the wrong primary and measure nothing comparable.
+      echo "== seed: $size"
+      if ! tb build/disavery env reset --tier pilot-light || ! tb build/disavery seed --size "$size"; then
+        worst=4
+        break
+      fi
+      for run in $(seq 1 "${SCALING_RUNS:-3}"); do
+        echo "== $size, run $run"
+        scenario s1-pilot-light
+        scenario s1-warm-standby
+      done
+    done
+    ;;
   *)
-    echo "usage: $0 nightly|weekly" >&2
+    echo "usage: $0 nightly|weekly|scaling" >&2
     exit 4
     ;;
 esac

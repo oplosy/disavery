@@ -570,6 +570,56 @@ func (l *LabEnv) PickRestorePoint(ctx context.Context, repo int, seed int64, dri
 	return restorepoint.Pick(backups, coverage, archived, restorePointMargin, excluded, seed)
 }
 
+// seedBatch is how much ballast one statement inserts: 8,192 rows of 8 KiB.
+const seedBatch = 8192 * 8192
+
+// Seed grows the table ballast in the production database to at least size
+// bytes of random, incompressible data, then takes a full backup to both
+// repositories, so restores in nightly drills move a realistic amount of data
+// (spec §12). The application never reads ballast. It returns the table size.
+func (l *LabEnv) Seed(ctx context.Context, size int64, out io.Writer) (int64, error) {
+	host, err := l.DBHost()
+	if err != nil {
+		return 0, err
+	}
+	sql := l.psql("docsvc")
+	if _, err := sql.Query(ctx, host, `CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE TABLE IF NOT EXISTS ballast (id bigint PRIMARY KEY, payload bytea NOT NULL)`); err != nil {
+		return 0, err
+	}
+	current := func() (int64, error) {
+		rows, err := sql.Query(ctx, host, "SELECT pg_total_relation_size('ballast')")
+		if err != nil {
+			return 0, err
+		}
+		if len(rows) != 1 || len(rows[0]) != 1 {
+			return 0, fmt.Errorf("unexpected result %v", rows)
+		}
+		return strconv.ParseInt(rows[0][0], 10, 64)
+	}
+	for {
+		have, err := current()
+		if err != nil {
+			return 0, err
+		}
+		if have >= size {
+			fmt.Fprintf(out, "ballast holds %d MB; taking a full backup to both repositories\n", have>>20)
+			if _, err := l.Env.SSH.Run(ctx, host, "systemctl start pgbackrest-backup@full.service", nil); err != nil {
+				return have, err
+			}
+			return have, nil
+		}
+		fmt.Fprintf(out, "ballast holds %d of %d MB\n", have>>20, size>>20)
+		// pgcrypto's random bytes defeat both TOAST and pgBackRest compression.
+		if _, err := sql.Query(ctx, host, `INSERT INTO ballast
+SELECT coalesce((SELECT max(id) FROM ballast), 0) + g, gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024) ||
+  gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024)
+FROM generate_series(1, `+strconv.Itoa(seedBatch/8192)+`) g`); err != nil {
+			return have, err
+		}
+	}
+}
+
 // ProductionChecks verifies production as it is now: integrity, business
 // rules and attachments in the active site's store.
 func (l *LabEnv) ProductionChecks(ctx context.Context) ([]verify.Result, error) {

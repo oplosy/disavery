@@ -60,3 +60,16 @@ func TestEnvSet(t *testing.T) {
 		t.Fatalf("invalid topology accepted: %d %s", code, errOut)
 	}
 }
+
+func TestParseSize(t *testing.T) {
+	for in, want := range map[string]int64{"500MB": 500 << 20, "1gb": 1 << 30, "64 KB": 64 << 10, "10B": 10} {
+		if got, err := parseSize(in); err != nil || got != want {
+			t.Fatalf("%q: %d %v", in, got, err)
+		}
+	}
+	for _, in := range []string{"", "MB", "-5MB", "5TB", "five MB"} {
+		if _, err := parseSize(in); err == nil {
+			t.Fatalf("%q accepted", in)
+		}
+	}
+}

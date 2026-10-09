@@ -19,6 +19,7 @@ var funcs = template.FuncMap{
 	"secs":  func(s float64) string { return FormatDuration(time.Duration(s * float64(time.Second))) },
 	"since": func(a, b time.Time) string { return FormatDuration(b.Sub(a)) },
 	"stamp": func(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05") },
+	"bytes": FormatBytes,
 	"clock": func(t time.Time) string { return t.UTC().Format("15:04:05") },
 	"dash": func(s string) string {
 		if s == "" {
@@ -64,6 +65,14 @@ func FormatDuration(d time.Duration) string {
 		return d.Round(10 * time.Millisecond).String()
 	}
 	return d.Round(time.Second).String()
+}
+
+// FormatBytes renders a size in binary units: "512 MB", "10.0 GB".
+func FormatBytes(n int64) string {
+	if n >= 1<<30 {
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	}
+	return fmt.Sprintf("%d MB", (n+1<<19)>>20)
 }
 
 // AllSteps returns phase steps followed by cleanup steps.

@@ -20,7 +20,8 @@ type HistoryEntry struct {
 	Scenario        string        `json:"scenario"`
 	Tier            string        `json:"tier,omitempty"`
 	Result          Result        `json:"result"`
-	Refused         bool          `json:"refused,omitempty"` // see Report.Refused
+	Refused         bool          `json:"refused,omitempty"`    // see Report.Refused
+	DataBytes       int64         `json:"data_bytes,omitempty"` // see Report.DataBytes
 	StartedAt       time.Time     `json:"started_at"`
 	DurationSeconds float64       `json:"duration_seconds"`
 	Measurements    []Measurement `json:"measurements,omitempty"`
@@ -29,7 +30,7 @@ type HistoryEntry struct {
 // HistoryEntry summarises the report for the history file.
 func (r *Report) HistoryEntry() HistoryEntry {
 	return HistoryEntry{
-		RunID: r.RunID, Scenario: r.Scenario, Tier: r.Tier, Result: r.Result, Refused: r.Refused,
+		RunID: r.RunID, Scenario: r.Scenario, Tier: r.Tier, Result: r.Result, Refused: r.Refused, DataBytes: r.DataBytes,
 		StartedAt: r.StartedAt, DurationSeconds: r.Duration().Seconds(), Measurements: r.Measurements,
 	}
 }

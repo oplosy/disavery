@@ -26,11 +26,13 @@ type fakeLab struct {
 	ran       []string
 	checks    map[string]verify.Status
 	targets   bia.Targets // of the last Checks call
+	dataSize  int64
 }
 
 func (f *fakeLab) Safety(context.Context, string) error           { return f.safetyErr }
 func (f *fakeLab) Preflight(context.Context) []report.Check       { return f.preflight }
 func (f *fakeLab) DBHost() (string, error)                        { return "db-a", nil }
+func (f *fakeLab) DataSize(context.Context) (int64, error)        { return f.dataSize, nil }
 func (f *fakeLab) Prober(context.Context) (*prober.Prober, error) { return nil, nil }
 func (f *fakeLab) Runners(bool) map[string]executor.Runner {
 	return map[string]executor.Runner{runbook.KindRun: f}
@@ -127,12 +129,12 @@ func pass() []report.Check { return []report.Check{{Name: "app-ready", Status: "
 
 func TestRestoreTestPasses(t *testing.T) {
 	o, reports := setup(t, "15m")
-	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}}
+	l := &fakeLab{preflight: pass(), checks: map[string]verify.Status{"amcheck": verify.Pass}, dataSize: 5 << 30}
 	r, dir, err := drill.Run(context.Background(), o, l)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Result != report.Pass || len(r.Measurements) != 1 || r.Measurements[0].Name != "recovery_time" || !r.Measurements[0].Met {
+	if r.Result != report.Pass || r.DataBytes != 5<<30 || len(r.Measurements) != 1 || r.Measurements[0].Name != "recovery_time" || !r.Measurements[0].Met {
 		t.Fatalf("report %+v", r)
 	}
 	if got := strings.Join(l.ran, "|"); got != "pick 7|restore F1 from db-a|tidy" {
@@ -144,7 +146,7 @@ func TestRestoreTestPasses(t *testing.T) {
 		}
 	}
 	h, err := report.ReadHistory(filepath.Join(reports, "history.jsonl"))
-	if err != nil || len(h) != 1 || h[0].Result != report.Pass {
+	if err != nil || len(h) != 1 || h[0].Result != report.Pass || h[0].DataBytes != 5<<30 {
 		t.Fatalf("history %+v %v", h, err)
 	}
 }

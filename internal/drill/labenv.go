@@ -620,6 +620,27 @@ FROM generate_series(1, `+strconv.Itoa(seedBatch/8192)+`) g`); err != nil {
 	}
 }
 
+// DataSize implements Lab: the production database's size in bytes.
+func (l *LabEnv) DataSize(ctx context.Context) (int64, error) {
+	host, err := l.DBHost()
+	if err != nil {
+		return 0, err
+	}
+	return l.queryInt(ctx, host, "SELECT pg_database_size('docsvc')")
+}
+
+// queryInt runs a query that returns one integer in the docsvc database.
+func (l *LabEnv) queryInt(ctx context.Context, host, query string) (int64, error) {
+	rows, err := l.psql("docsvc").Query(ctx, host, query)
+	if err != nil {
+		return 0, err
+	}
+	if len(rows) != 1 || len(rows[0]) != 1 {
+		return 0, fmt.Errorf("unexpected result %v", rows)
+	}
+	return strconv.ParseInt(rows[0][0], 10, 64)
+}
+
 // ProductionChecks verifies production as it is now: integrity, business
 // rules and attachments in the active site's store.
 func (l *LabEnv) ProductionChecks(ctx context.Context) ([]verify.Result, error) {

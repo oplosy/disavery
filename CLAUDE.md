@@ -14,7 +14,8 @@ matters as much as correctness.
 Source of truth:
 
 - Design spec: `docs/superpowers/specs/2026-10-07-disavery-dr-design.md`
-- Plans (all shipped): `docs/superpowers/plans/2026-10-07-m1-environment-and-app.md`,
+- Current plan (spec §14 follow-up): `docs/superpowers/plans/2026-10-09-rto-vs-data-size.md`
+- Shipped plans (v1): `docs/superpowers/plans/2026-10-07-m1-environment-and-app.md`,
   `docs/superpowers/plans/2026-10-07-m2-cli-core-and-s6.md`,
   `docs/superpowers/plans/2026-10-07-m3-site-b-s1-s7.md`,
   `docs/superpowers/plans/2026-10-08-m4-s2-s5.md`,
@@ -28,8 +29,10 @@ and spec disagree, raise it — don't silently diverge.
 v1 is complete: M1 (PR #2), M2 (PR #4), M3 (PR #6), M4 (PR #8, follow-up
 PR #9) and M5 (PR #11) shipped; see each plan's amendments and decisions for
 deviations from the spec. The `drills` workflow proves recovery every night
-and publishes to the `drill-history` branch. Next: the follow-ups in spec
-§14, each planned on its own after this one.
+and publishes to the `drill-history` branch. Follow-ups from spec §14 are
+planned one at a time: the RTO vs. data size study is planned (prototype and
+study done on `wip/scaling-prototype`); next: implement it on
+`feat/rto-vs-data-size`.
 
 | Milestone | Scope |
 |---|---|

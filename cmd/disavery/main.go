@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -124,6 +125,7 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		yes := fs.Bool("yes", false, "confirm a runbook that injects a failure")
 		timeout := fs.Duration("timeout", time.Hour, "global timeout; cleanup still runs")
 		seed := fs.Int64("seed", 0, "random seed (default: time-based)")
+		push := fs.String("pushgateway", lab.Default(".").Pushgateway, "Pushgateway for the result (empty: do not push)")
 		id, err := parseWithArg(fs, args[1:], "runbook id")
 		if err != nil {
 			return fail(err)
@@ -147,6 +149,15 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 			}
 		}
 		fmt.Fprintf(stdout, "\nreport %s\n", filepath.Join(dir, "report.md"))
+		// Dashboards and alert RestoreTestStale read the result; failing to
+		// push it does not change the drill's verdict.
+		if *push != "" {
+			pctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			if err := report.Push(pctx, &http.Client{}, *push, r); err != nil {
+				fmt.Fprintf(stderr, "warning: result not pushed to %s: %v\n", *push, err)
+			}
+			cancel()
+		}
 		return r.Result.ExitCode()
 
 	case "drill list":

@@ -642,14 +642,14 @@ func (l *LabEnv) topology() (string, string, error) {
 }
 
 func (l *LabEnv) noFiringAlerts(ctx context.Context) (string, error) {
-	active, err := activeAlerts(ctx, &http.Client{Timeout: 5 * time.Second}, l.Env.Alertmanager)
+	active, err := activeAlerts(ctx, &http.Client{Timeout: 5 * time.Second}, l.Env.Alertmanager, blocksDrills)
 	if err != nil {
 		return "", fmt.Errorf("alertmanager: %w", err)
 	}
 	if len(active) > 0 {
 		return "", fmt.Errorf("firing: %s", strings.Join(active, ", "))
 	}
-	return "Alertmanager reports no active alert", nil
+	return "Alertmanager reports no alert that blocks drills", nil
 }
 
 // TierBaselines are the topologies each DR tier starts from: pilot light has

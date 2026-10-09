@@ -17,7 +17,11 @@ document is a lost customer record. The numbers below live in
   30 s of commits plus shipping time can be lost; 60 s leaves headroom. A
   streaming replica receives WAL continuously, so seconds are realistic.
 - **RTO** for pilot light is dominated by provisioning and restoring site-b;
-  for warm standby by detection, the decision and promotion.
+  for warm standby by detection, the decision and promotion. Measured from 1 to
+  10 GB, pilot light's RTO grows 6–10 s per GB (4 min 15 s at 10 GB) and warm
+  standby's stays at one minute: both targets are met up to 10 GB, and pilot
+  light's would be crossed somewhere around 75–120 GB by extrapolation
+  ([data-size study](scaling.md)).
 
 Actual RPO and RTO are measured from the outside by every drill (spec §6):
 the canary writer journals each write the application acknowledged, and the

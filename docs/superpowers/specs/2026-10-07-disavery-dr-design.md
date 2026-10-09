@@ -1,7 +1,7 @@
 # disavery — Disaster Recovery Architecture: Design Spec
 
 - **Date:** 2026-10-07
-- **Status:** Approved in design review, pending written-spec review
+- **Status:** Implemented: v1 shipped in five milestones (plans in `docs/superpowers/plans/`); sections are amended where implementation found something
 - **Scope:** v1 (local environment). Cloud profile is a follow-up.
 
 ## 1. Purpose

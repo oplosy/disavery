@@ -8,8 +8,6 @@ on:
   schedule:
     - cron: "17 2 * * *" # nightly
     - cron: "17 4 * * 0" # weekly, Sunday
-  push: # TEMPORARY: proves the workflow before merge; reverted below
-    branches: [feat/m5-monitoring-ci-drills]
   workflow_dispatch:
     inputs:
       programme:
@@ -35,7 +33,7 @@ jobs:
     timeout-minutes: 240
     env:
       PROGRAMME: ${{ inputs.programme || (github.event.schedule == '17 4 * * 0' && 'weekly') || 'nightly' }}
-      HISTORY_BRANCH: ${{ inputs.history_branch || (github.event_name == 'push' && 'drill-history-test') || 'drill-history' }}
+      HISTORY_BRANCH: ${{ inputs.history_branch || 'drill-history' }}
     steps:
       - uses: actions/checkout@v4
 

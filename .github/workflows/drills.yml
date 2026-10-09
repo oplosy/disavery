@@ -1,0 +1,63 @@
+name: drills
+
+# Brings the lab up on a runner and proves recovery (spec §12): every night
+# the random restore test plus one rotating scenario, every Sunday the whole
+# catalog. Results go to the drill-history branch (badge, trend), reports to
+# the run's artifacts.
+on:
+  schedule:
+    - cron: "17 2 * * *" # nightly
+    - cron: "17 4 * * 0" # weekly, Sunday
+  workflow_dispatch:
+    inputs:
+      programme:
+        description: Drill programme
+        type: choice
+        options: [nightly, weekly]
+        default: nightly
+      history_branch:
+        description: Branch that keeps the drill history
+        type: string
+        default: drill-history
+
+permissions:
+  contents: write # the history branch
+
+concurrency:
+  group: drills
+  cancel-in-progress: false
+
+jobs:
+  drills:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      PROGRAMME: ${{ inputs.programme || (github.event.schedule == '17 4 * * 0' && 'weekly') || 'nightly' }}
+      HISTORY_BRANCH: ${{ inputs.history_branch || 'drill-history' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bring the lab up
+        run: make up
+
+      - name: Seed the database with about 500 MB
+        run: docker compose exec -T toolbox build/disavery seed --size 500MB
+
+      - name: Smoke test
+        run: make smoke
+
+      - name: Drills (${{ env.PROGRAMME }})
+        id: drills
+        run: scripts/drill-programme.sh "$PROGRAMME"
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drill-reports-${{ github.run_id }}
+          path: reports/
+          retention-days: 30
+
+      - name: Publish the history and badge
+        if: always() && steps.drills.outcome != 'skipped'
+        run: scripts/publish-history.sh "$HISTORY_BRANCH"

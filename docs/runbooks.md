@@ -43,7 +43,7 @@ Common fields:
 |---|---|
 | `when` | Condition, e.g. `tier == 'pilot-light'`; `==`, `!=`, `&&`, `\|\|` over variables and quoted strings |
 | `timeout` | Per attempt, e.g. `5m` |
-| `retries` | Extra attempts (0–10) |
+| `retries` | Extra attempts (0–10), 3 s apart |
 | `on_failure` | `abort` (default) or `continue` (default in `verify` and `preflight`, so every check reports) |
 | `capture` | `run`/`ssh` only: stores stdout as a variable; a JSON object becomes a map (`{{.point.set}}`) |
 

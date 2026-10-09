@@ -105,6 +105,9 @@ type Options struct {
 	Now            func() time.Time
 	CleanupTimeout time.Duration
 	Progress       func(StepRecord)
+	// RetryDelay is the pause before each retry of a failed step; retrying at
+	// once cannot outlast what usually fails a step, e.g. a node still booting.
+	RetryDelay time.Duration
 }
 
 // Execute runs the phases in order and then the cleanup steps, which always
@@ -231,6 +234,16 @@ func (e *execution) step(ctx context.Context, s runbook.Step, phase string, inci
 
 	var out Output
 	for attempt := 1; attempt <= s.Retries+1; attempt++ {
+		if attempt > 1 && e.opt.RetryDelay > 0 {
+			fmt.Fprintf(log, "# waiting %s\n", e.opt.RetryDelay)
+			select {
+			case <-ctx.Done():
+			case <-time.After(e.opt.RetryDelay):
+			}
+			if ctx.Err() != nil {
+				break
+			}
+		}
 		rec.Attempts = attempt
 		fmt.Fprintf(log, "# attempt %d\n", attempt)
 		actx, cancel := ctx, context.CancelFunc(func() {})

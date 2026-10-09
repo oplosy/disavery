@@ -7,3 +7,4 @@ terraform.tfstate.d/
 /reports/*
 !/reports/samples/
 /infra/terraform/envs/local/topology.auto.tfvars
+/.drill-history/

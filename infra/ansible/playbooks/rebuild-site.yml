@@ -43,6 +43,7 @@
     - postgres
     - pgbackrest
     - postgres_exporter
+    - pgbackrest_exporter
 
 - name: Application
   hosts: "app:&site_{{ target_site | default('b') }}"

@@ -83,3 +83,47 @@ resource "docker_container" "alertmanager" {
     value = "drill"
   }
 }
+
+# Drill results (spec §8): `disavery drill run` pushes each result here, and
+# Prometheus scrapes it. Persisted, so a restart keeps when the restore test
+# last passed (alert RestoreTestStale).
+resource "docker_image" "pushgateway" {
+  name         = "prom/pushgateway:v1.11.3"
+  keep_locally = true
+}
+
+resource "docker_volume" "pushgateway" {
+  name = "disavery-pushgateway"
+
+  labels {
+    label = "disavery.env"
+    value = "drill"
+  }
+}
+
+resource "docker_container" "pushgateway" {
+  name    = "pushgateway"
+  image   = docker_image.pushgateway.image_id
+  restart = "unless-stopped"
+  # See modules/node: Docker reports "bridge" for networks_advanced-only containers.
+  network_mode = "bridge"
+  command = [
+    "--persistence.file=/data/metrics",
+    "--persistence.interval=30s",
+  ]
+
+  networks_advanced {
+    name         = data.docker_network.wan.name
+    ipv4_address = local.ip.pushgateway
+  }
+
+  volumes {
+    volume_name    = docker_volume.pushgateway.name
+    container_path = "/data"
+  }
+
+  labels {
+    label = "disavery.env"
+    value = "drill"
+  }
+}

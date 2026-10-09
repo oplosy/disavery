@@ -16,3 +16,45 @@ groups:
           severity: warning
         annotations:
           summary: "Standby {{ $labels.instance }} replays {{ $value | humanizeDuration }} behind the primary"
+
+      # Backups run hourly (incremental) to both repositories; the metric for
+      # incr falls back to the newest full backup. Same limit as preflight.
+      - alert: BackupTooOld
+        expr: pgbackrest_backup_repo_since_last_completion_seconds{job="pgbackrest", role="primary", backup_type="incr"} > 2 * 3600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "repo{{ $labels.repo_key }} has no new backup for {{ $value | humanizeDuration }} (policy: hourly)"
+
+      # archive_timeout is 30 s and the canary writes every second, so a
+      # segment leaves the primary at least every 30 s. Same limit as preflight.
+      - alert: WalArchiveLagHigh
+        expr: pg_stat_archiver_last_archive_age{job="postgres", role="primary"} > 45
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.instance }} last archived WAL {{ $value | humanizeDuration }} ago (archive_timeout is 30 s)"
+
+      # A site loss now would lose more than pilot light's 60 s RPO target.
+      - alert: RpoBreachRisk
+        expr: pg_stat_archiver_last_archive_age{job="postgres", role="primary"} > 50
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} has unarchived WAL {{ $value | humanizeDuration }} old; the pilot-light RPO target is 60 s"
+
+      # About the drill programme, not the lab: it fires in a lab that never
+      # ran a restore test, so it must not stop drills (blocks_drills). Both
+      # branches keep the scenario label, so the alert stays one series.
+      - alert: RestoreTestStale
+        expr: >-
+          time() - max by (scenario) (disavery_drill_last_success_timestamp_seconds{scenario="s6-restore-test"}) > 48 * 3600
+          or absent(disavery_drill_last_success_timestamp_seconds{scenario="s6-restore-test"})
+        for: 1m
+        labels:
+          severity: warning
+          blocks_drills: "false"
+        annotations:
+          summary: "No random restore test (S6) has passed in the last 48 hours"

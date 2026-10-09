@@ -1,0 +1,14 @@
+[Unit]
+Description=Prometheus pgBackRest exporter
+After=network-online.target
+
+[Service]
+# pgbackrest.conf and repo1 belong to postgres; the exporter only runs
+# `pgbackrest info`, which reads both repositories.
+User=postgres
+ExecStart=/usr/local/bin/pgbackrest_exporter --web.listen-address=:9854 --collect.interval={{ pgbackrest_exporter_interval }} --backrest.stanza-include={{ pgbackrest_stanza }}
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

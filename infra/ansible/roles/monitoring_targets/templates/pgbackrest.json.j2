@@ -1,0 +1,5 @@
+[
+{% for host in groups['db'] | default([]) | sort %}
+  {"targets": ["{{ host }}:9854"], "labels": {"instance": "{{ host }}", "site": "{{ hostvars[host].site }}", "role": "{{ 'primary' if hostvars[host].site == active_site else ('standby' if hostvars[host].site == standby_site else 'none') }}"}}{{ "," if not loop.last }}
+{% endfor %}
+]

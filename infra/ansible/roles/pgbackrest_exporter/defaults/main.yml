@@ -1,0 +1,8 @@
+pgbackrest_exporter_version: 0.24.0
+# From the release's pgbackrest_exporter_checksums.txt; pinned so reruns need no network.
+pgbackrest_exporter_sha256: a6e6a5adf85fb7c46dc3a3212efcba2045b9c543a1d162ddc868b821bd1d0f10
+pgbackrest_exporter_release: "https://github.com/woblerr/pgbackrest_exporter/releases/download/v{{ pgbackrest_exporter_version }}"
+pgbackrest_exporter_archive: "pgbackrest_exporter-{{ pgbackrest_exporter_version }}-linux-x86_64"
+# pgbackrest info against both repositories this often; BackupTooOld allows
+# for it.
+pgbackrest_exporter_interval: 60

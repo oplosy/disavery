@@ -574,9 +574,12 @@ func (l *LabEnv) PickRestorePoint(ctx context.Context, repo int, seed int64, dri
 const seedBatch = 8192 * 8192
 
 // Seed grows the table ballast in the production database to at least size
-// bytes of random, incompressible data, then takes a full backup to both
-// repositories, so restores in nightly drills move a realistic amount of data
-// (spec §12). The application never reads ballast. It returns the table size.
+// bytes, then takes a full backup to both repositories, so restores in drills
+// move a realistic amount of data (spec §12, §14). Each 8 KiB row is 2 KiB of
+// random bytes and 6 KiB of zeros, stored without TOAST compression: the
+// database holds the full size, while pgBackRest's zstd shrinks backups and
+// WAL about fourfold, as it would for typical application data. The
+// application never reads ballast. It returns the table size.
 func (l *LabEnv) Seed(ctx context.Context, size int64, out io.Writer) (int64, error) {
 	host, err := l.DBHost()
 	if err != nil {
@@ -584,21 +587,12 @@ func (l *LabEnv) Seed(ctx context.Context, size int64, out io.Writer) (int64, er
 	}
 	sql := l.psql("docsvc")
 	if _, err := sql.Query(ctx, host, `CREATE EXTENSION IF NOT EXISTS pgcrypto;
-CREATE TABLE IF NOT EXISTS ballast (id bigint PRIMARY KEY, payload bytea NOT NULL)`); err != nil {
+CREATE TABLE IF NOT EXISTS ballast (id bigint PRIMARY KEY, payload bytea NOT NULL);
+ALTER TABLE ballast ALTER COLUMN payload SET STORAGE EXTERNAL`); err != nil {
 		return 0, err
 	}
-	current := func() (int64, error) {
-		rows, err := sql.Query(ctx, host, "SELECT pg_total_relation_size('ballast')")
-		if err != nil {
-			return 0, err
-		}
-		if len(rows) != 1 || len(rows[0]) != 1 {
-			return 0, fmt.Errorf("unexpected result %v", rows)
-		}
-		return strconv.ParseInt(rows[0][0], 10, 64)
-	}
 	for {
-		have, err := current()
+		have, err := l.queryInt(ctx, host, "SELECT pg_total_relation_size('ballast')")
 		if err != nil {
 			return 0, err
 		}
@@ -610,10 +604,9 @@ CREATE TABLE IF NOT EXISTS ballast (id bigint PRIMARY KEY, payload bytea NOT NUL
 			return have, nil
 		}
 		fmt.Fprintf(out, "ballast holds %d of %d MB\n", have>>20, size>>20)
-		// pgcrypto's random bytes defeat both TOAST and pgBackRest compression.
 		if _, err := sql.Query(ctx, host, `INSERT INTO ballast
-SELECT coalesce((SELECT max(id) FROM ballast), 0) + g, gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024) ||
-  gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024) || gen_random_bytes(1024)
+SELECT coalesce((SELECT max(id) FROM ballast), 0) + g,
+  gen_random_bytes(1024) || gen_random_bytes(1024) || decode(repeat('00', 6144), 'hex')
 FROM generate_series(1, `+strconv.Itoa(seedBatch/8192)+`) g`); err != nil {
 			return have, err
 		}

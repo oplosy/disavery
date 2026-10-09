@@ -224,8 +224,12 @@ Output directory: `reports/<timestamp>-<scenario>-<tier>/`
   (Mermaid gantt), verification results.
 - `reports/history.jsonl` — one line per drill. `disavery report trend` builds
   trend tables and the tier comparison table from it.
-- Results are pushed to Prometheus Pushgateway; Grafana shows trends and the
-  **"last successful restore test older than 48 h"** alert fires from it.
+- Results are pushed to Prometheus Pushgateway — the last run and the last
+  success per scenario and tier, so a failed run cannot hide when the scenario
+  last passed; a failed push never changes the verdict
+  ([ADR 0009](../../adr/0009-drill-evidence-pushgateway-and-history-branch.md)).
+  Grafana shows trends and the **"last successful restore test older than
+  48 h"** alert fires from it.
 
 ### Result classes and exit codes
 
@@ -253,7 +257,8 @@ Output directory: `reports/<timestamp>-<scenario>-<tier>/`
 
 ## 10. Monitoring and alerting
 
-Prometheus scrapes Postgres, pgBackRest, MinIO, `docsvc` and node metrics.
+Prometheus scrapes PostgreSQL (`postgres_exporter`), pgBackRest
+(`pgbackrest_exporter`) and the Pushgateway.
 Alerts (Alertmanager):
 
 - `PostgresPrimaryDown`
@@ -261,6 +266,10 @@ Alerts (Alertmanager):
 - `WalArchiveLagHigh` / `RpoBreachRisk` (archive lag approaching target RPO)
 - `ReplicationLagHigh` (warm standby)
 - `RestoreTestStale` (last successful S6 older than 48 h, via Pushgateway)
+
+Thresholds reuse the BIA's preflight limits (`docs/bia.md`, Alerts). Alerts
+about the drill programme rather than the lab (`RestoreTestStale`) carry
+`blocks_drills="false"` and do not stop preflight.
 
 Grafana dashboards: backup health, replication, drill history.
 
@@ -286,7 +295,8 @@ Grafana dashboards: backup health, replication, drill history.
 - **Weekly:** full catalog.
 - **Outputs:** reports uploaded as artifacts; `history.jsonl` and badge JSON
   committed by a bot to a dedicated `drill-history` branch (keeps `main`
-  clean); README shows a "last restore drill: PASS · 6h ago" badge.
+  clean); README shows a "last restore drill: PASS · 2026-10-09 02:31 UTC"
+  badge (the time the newest S6 finished; a static badge cannot age).
 
 ## 13. Build order
 
@@ -303,3 +313,5 @@ Grafana dashboards: backup health, replication, drill history.
 - Fencing / split-brain prevention and DNS TTL experiments in depth.
 - RTO vs. data size study (1 / 10 / 50 GB).
 - Logical backups for cross-version and partial restores.
+- MinIO, `docsvc` and node metrics in Prometheus (v1 scrapes what its alerts
+  and dashboards read).

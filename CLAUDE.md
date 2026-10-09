@@ -14,23 +14,22 @@ matters as much as correctness.
 Source of truth:
 
 - Design spec: `docs/superpowers/specs/2026-10-07-disavery-dr-design.md`
-- Current plan (M5 of 5): `docs/superpowers/plans/2026-10-09-m5-monitoring-ci-drills.md`
-- Previous plans (shipped): `docs/superpowers/plans/2026-10-07-m1-environment-and-app.md`,
+- Plans (all shipped): `docs/superpowers/plans/2026-10-07-m1-environment-and-app.md`,
   `docs/superpowers/plans/2026-10-07-m2-cli-core-and-s6.md`,
   `docs/superpowers/plans/2026-10-07-m3-site-b-s1-s7.md`,
-  `docs/superpowers/plans/2026-10-08-m4-s2-s5.md`
+  `docs/superpowers/plans/2026-10-08-m4-s2-s5.md`,
+  `docs/superpowers/plans/2026-10-09-m5-monitoring-ci-drills.md`
 
 Read the relevant spec section and plan task before changing anything. If code
 and spec disagree, raise it — don't silently diverge.
 
 ## Status
 
-M1 shipped (PR #2), M2 shipped (PR #4), M3 shipped (PR #6) and M4 shipped
-(PR #8, follow-up PR #9); see each plan's amendments and decisions for
-deviations from the spec. M5 is planned (prototype verified on
-`wip/m5-prototype`, including the nightly and weekly CI drills); next:
-implement it on `feat/m5-monitoring-ci-drills`. Update this section as
-milestones ship.
+v1 is complete: M1 (PR #2), M2 (PR #4), M3 (PR #6), M4 (PR #8, follow-up
+PR #9) and M5 (PR #11) shipped; see each plan's amendments and decisions for
+deviations from the spec. The `drills` workflow proves recovery every night
+and publishes to the `drill-history` branch. Next: the follow-ups in spec
+§14, each planned on its own after this one.
 
 | Milestone | Scope |
 |---|---|

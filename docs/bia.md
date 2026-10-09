@@ -77,6 +77,19 @@ always means a failed recovery, not a broken lab.
 | `preflight.max_canary_silence` | 10 s | The canary writes every second; silence means the measurement would be blind |
 | `preflight.min_canary_history` | 1 min | The canary must have written for two archive cycles without a gap, and production must hold all of it. Otherwise a drill started right after another drill's recovery finds no surviving write between the two incidents and charges the earlier loss to this one (found when S4 ran a minute after S3) |
 
+## Alerts
+
+The alerts that watch recoverability between drills reuse the preflight
+limits, so the lab warns about exactly what would stop a drill.
+
+| Alert | Fires when | Why |
+|---|---|---|
+| `BackupTooOld` | a repository's newest backup on the primary is older than 2 h, for 5 min | `max_backup_age`: incremental backups run hourly to both repositories |
+| `WalArchiveLagHigh` | the primary's last archived segment is older than 45 s | `max_archive_age`: `archive_timeout` is 30 s |
+| `RpoBreachRisk` | … older than 50 s | a site loss now would lose more than pilot light's 60 s RPO target |
+| `ReplicationLagHigh` | the warm standby replays more than 5 s behind | the warm-standby RPO target is 5 s |
+| `RestoreTestStale` | no S6 has passed for 48 h, or none ever | spec §8; it does not stop drills, or a new lab could never run its first restore test |
+
 ## Retention
 
 | What | Policy |

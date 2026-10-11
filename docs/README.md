@@ -10,6 +10,8 @@ Start with the [project README](../README.md) for the system overview, measured 
 - [RTO versus data-size study](scaling.md)
 - [Runbooks](../runbooks/)
 
+- [Scheduled drill evidence flow](drill-evidence.md)
+
 ## Decisions, plans, and evidence
 
 - [Architecture decisions](adr/)

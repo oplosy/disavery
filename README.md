@@ -6,19 +6,19 @@ Written by the drills workflow; the badge in the README reads badge.json.
 
 | Scenario | Tier | Runs | Passed | Last result | Last run (UTC) | Measures |
 |---|---|---|---|---|---|---|
-| s1-site-loss | pilot-light | 4 | 4 | PASS | 2026-10-21 07:48 | rpo: median 11s, max 12s, target 1m0s, met 4/4<br>rto: median 2m24s, max 2m26s, target 15m0s, met 4/4 |
-| s1-site-loss | warm-standby | 4 | 4 | PASS | 2026-10-22 07:47 | rpo: median 580ms, max 890ms, target 5s, met 4/4<br>rto: median 49s, max 52s, target 2m0s, met 4/4 |
-| s2-drop-table | — | 4 | 4 | PASS | 2026-10-23 07:42 | rpo: median 600ms, max 850ms, target 5s, met 4/4<br>rto: median 1m16s, max 1m22s, target 15m0s, met 4/4 |
-| s3-bad-migration | — | 5 | 5 | PASS | 2026-10-24 07:27 | rpo: median 32s, max 32s, target 1m0s, met 5/5<br>rto: median 1m19s, max 1m25s, target 15m0s, met 5/5 |
-| s4-ransomware | — | 5 | 4 | PASS | 2026-10-25 07:43 | rpo: median 24s, max 26s, target 1m0s, met 4/4<br>rto: median 1m31s, max 1m37s, target 30m0s, met 4/4 |
-| s5-secret-loss | — | 3 | 3 | PASS | 2026-10-20 07:44 | rpo: median 12s, max 21s, target 1m0s, met 3/3<br>rto: median 2m24s, max 2m27s, target 20m0s, met 3/3 |
-| s6-restore-test | — | 18 | 18 | PASS | 2026-10-25 07:42 | recovery_time: median 48s, max 1m4s, target 15m0s, met 18/18 |
-| s7-failback | pilot-light | 9 | 7 | PASS | 2026-10-21 07:52 | downtime: median 2.5s, max 3s, target 15m0s, met 7/7<br>rpo: median 0s, max 0s, target 1m0s, met 7/7 |
-| s7-failback | warm-standby | 4 | 4 | PASS | 2026-10-22 07:48 | downtime: median 4.5s, max 6s, target 2m0s, met 4/4<br>rpo: median 0s, max 0s, target 5s, met 4/4 |
+| s1-site-loss | pilot-light | 5 | 5 | PASS | 2026-10-25 09:28 | rpo: median 11s, max 13s, target 1m0s, met 5/5<br>rto: median 2m19s, max 2m26s, target 15m0s, met 5/5 |
+| s1-site-loss | warm-standby | 5 | 5 | PASS | 2026-10-25 09:36 | rpo: median 580ms, max 890ms, target 5s, met 5/5<br>rto: median 48s, max 52s, target 2m0s, met 5/5 |
+| s2-drop-table | — | 5 | 5 | PASS | 2026-10-25 09:16 | rpo: median 600ms, max 850ms, target 5s, met 5/5<br>rto: median 1m12s, max 1m22s, target 15m0s, met 5/5 |
+| s3-bad-migration | — | 6 | 6 | PASS | 2026-10-25 09:18 | rpo: median 32s, max 32s, target 1m0s, met 6/6<br>rto: median 1m20s, max 1m25s, target 15m0s, met 6/6 |
+| s4-ransomware | — | 6 | 5 | PASS | 2026-10-25 09:20 | rpo: median 20s, max 26s, target 1m0s, met 5/5<br>rto: median 1m30s, max 1m37s, target 30m0s, met 5/5 |
+| s5-secret-loss | — | 4 | 4 | PASS | 2026-10-25 09:23 | rpo: median 21s, max 21s, target 1m0s, met 4/4<br>rto: median 2m24s, max 2m27s, target 20m0s, met 4/4 |
+| s6-restore-test | — | 19 | 19 | PASS | 2026-10-25 09:15 | recovery_time: median 48s, max 1m4s, target 15m0s, met 19/19 |
+| s7-failback | pilot-light | 11 | 9 | PASS | 2026-10-25 09:31 | downtime: median 2.5s, max 3s, target 15m0s, met 9/9<br>rpo: median 0s, max 0s, target 1m0s, met 9/9 |
+| s7-failback | warm-standby | 5 | 5 | PASS | 2026-10-25 09:38 | downtime: median 4.5s, max 6s, target 2m0s, met 5/5<br>rpo: median 0s, max 0s, target 5s, met 5/5 |
 
 ## DR tiers (site loss, S1)
 
 | Tier | Target RPO | Actual RPO, median | Target RTO | Actual RTO, median | Runs passed | Always-on DR nodes | Est. monthly cost |
 |---|---|---|---|---|---|---|---|
-| pilot-light | 1m0s | 11s (max 12s) | 15m0s | 2m24s (max 2m26s) | 4/4 | 0 | $0 |
-| warm-standby | 5s | 580ms (max 890ms) | 2m0s | 49s (max 52s) | 4/4 | 3 | $72 |
+| pilot-light | 1m0s | 11s (max 13s) | 15m0s | 2m19s (max 2m26s) | 5/5 | 0 | $0 |
+| warm-standby | 5s | 580ms (max 890ms) | 2m0s | 48s (max 52s) | 5/5 | 3 | $72 |

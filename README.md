@@ -10,9 +10,9 @@ Written by the drills workflow; the badge in the README reads badge.json.
 | s1-site-loss | warm-standby | 4 | 4 | PASS | 2026-10-22 07:47 | rpo: median 580ms, max 890ms, target 5s, met 4/4<br>rto: median 49s, max 52s, target 2m0s, met 4/4 |
 | s2-drop-table | — | 4 | 4 | PASS | 2026-10-23 07:42 | rpo: median 600ms, max 850ms, target 5s, met 4/4<br>rto: median 1m16s, max 1m22s, target 15m0s, met 4/4 |
 | s3-bad-migration | — | 5 | 5 | PASS | 2026-10-24 07:27 | rpo: median 32s, max 32s, target 1m0s, met 5/5<br>rto: median 1m19s, max 1m25s, target 15m0s, met 5/5 |
-| s4-ransomware | — | 4 | 3 | PASS | 2026-10-19 07:57 | rpo: median 15s, max 26s, target 1m0s, met 3/3<br>rto: median 1m31s, max 1m37s, target 30m0s, met 3/3 |
+| s4-ransomware | — | 5 | 4 | PASS | 2026-10-25 07:43 | rpo: median 24s, max 26s, target 1m0s, met 4/4<br>rto: median 1m31s, max 1m37s, target 30m0s, met 4/4 |
 | s5-secret-loss | — | 3 | 3 | PASS | 2026-10-20 07:44 | rpo: median 12s, max 21s, target 1m0s, met 3/3<br>rto: median 2m24s, max 2m27s, target 20m0s, met 3/3 |
-| s6-restore-test | — | 17 | 17 | PASS | 2026-10-24 07:26 | recovery_time: median 48s, max 1m4s, target 15m0s, met 17/17 |
+| s6-restore-test | — | 18 | 18 | PASS | 2026-10-25 07:42 | recovery_time: median 48s, max 1m4s, target 15m0s, met 18/18 |
 | s7-failback | pilot-light | 9 | 7 | PASS | 2026-10-21 07:52 | downtime: median 2.5s, max 3s, target 15m0s, met 7/7<br>rpo: median 0s, max 0s, target 1m0s, met 7/7 |
 | s7-failback | warm-standby | 4 | 4 | PASS | 2026-10-22 07:48 | downtime: median 4.5s, max 6s, target 2m0s, met 4/4<br>rpo: median 0s, max 0s, target 5s, met 4/4 |
 

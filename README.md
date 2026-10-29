@@ -8,11 +8,11 @@ Written by the drills workflow; the badge in the README reads badge.json.
 |---|---|---|---|---|---|---|
 | s1-site-loss | pilot-light | 6 | 6 | PASS | 2026-10-27 08:01 | rpo: median 11s, max 13s, target 1m0s, met 6/6<br>rto: median 2m19s, max 2m26s, target 15m0s, met 6/6 |
 | s1-site-loss | warm-standby | 6 | 6 | PASS | 2026-10-28 08:44 | rpo: median 580ms, max 890ms, target 5s, met 6/6<br>rto: median 48s, max 52s, target 2m0s, met 6/6 |
-| s2-drop-table | — | 5 | 5 | PASS | 2026-10-25 09:16 | rpo: median 600ms, max 850ms, target 5s, met 5/5<br>rto: median 1m12s, max 1m22s, target 15m0s, met 5/5 |
+| s2-drop-table | — | 6 | 6 | PASS | 2026-10-29 08:38 | rpo: median 600ms, max 850ms, target 5s, met 6/6<br>rto: median 1m12s, max 1m22s, target 15m0s, met 6/6 |
 | s3-bad-migration | — | 6 | 6 | PASS | 2026-10-25 09:18 | rpo: median 32s, max 32s, target 1m0s, met 6/6<br>rto: median 1m20s, max 1m25s, target 15m0s, met 6/6 |
 | s4-ransomware | — | 6 | 5 | PASS | 2026-10-25 09:20 | rpo: median 20s, max 26s, target 1m0s, met 5/5<br>rto: median 1m30s, max 1m37s, target 30m0s, met 5/5 |
 | s5-secret-loss | — | 5 | 5 | PASS | 2026-10-26 07:56 | rpo: median 16s, max 21s, target 1m0s, met 5/5<br>rto: median 2m15s, max 2m27s, target 20m0s, met 5/5 |
-| s6-restore-test | — | 22 | 22 | PASS | 2026-10-28 08:42 | recovery_time: median 48s, max 1m4s, target 15m0s, met 22/22 |
+| s6-restore-test | — | 23 | 23 | PASS | 2026-10-29 08:37 | recovery_time: median 48s, max 1m4s, target 15m0s, met 23/23 |
 | s7-failback | pilot-light | 13 | 11 | PASS | 2026-10-27 08:04 | downtime: median 2.5s, max 3s, target 15m0s, met 11/11<br>rpo: median 0s, max 0s, target 1m0s, met 11/11 |
 | s7-failback | warm-standby | 6 | 6 | PASS | 2026-10-28 08:46 | downtime: median 4.5s, max 6s, target 2m0s, met 6/6<br>rpo: median 0s, max 0s, target 5s, met 6/6 |
 
